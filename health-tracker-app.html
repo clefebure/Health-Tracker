@@ -1826,18 +1826,30 @@
                             </div>
                         </div>
 
-                        <div class="field-container" data-field="exercise" data-type="select">
-                            <div class="field-label">exercise</div>
-                            <div class="field-value-display" data-display="exercise"></div>
-                            <select id="exercise">
-                                <option value=""></option>
-                                <option value="yes">yes</option>
-                                <option value="no">no</option>
-                            </select>
-                            <div class="options-list" data-options="exercise">
-                                <div class="option-item" data-value="">—</div>
-                                <div class="option-item" data-value="yes" data-quality="good">yes</div>
-                                <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                        <!-- exercise wrapper: field-container + time sub-field stack vertically -->
+                        <div style="display:flex;flex-direction:column;gap:0;">
+                            <div class="field-container" data-field="exercise" data-type="select">
+                                <div class="field-label">exercise</div>
+                                <div class="field-value-display" data-display="exercise"></div>
+                                <select id="exercise">
+                                    <option value=""></option>
+                                    <option value="yes">yes</option>
+                                    <option value="no">no</option>
+                                </select>
+                                <div class="options-list" data-options="exercise">
+                                    <div class="option-item" data-value="">—</div>
+                                    <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                    <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                                </div>
+                            </div>
+                            <div id="exerciseTimeRow" style="display:none;padding:8px 12px;background:var(--pastel-green);border:1px solid #81C784;border-top:none;">
+                                <label style="font-size:0.62rem;font-weight:600;color:var(--blue);letter-spacing:0.05em;text-transform:lowercase;display:block;margin-bottom:4px;">time of day</label>
+                                <select id="exerciseTime" style="width:100%;box-sizing:border-box;font-size:0.85rem;padding:4px 6px;border:1px solid #81C784;border-radius:4px;background:white;">
+                                    <option value="">—</option>
+                                    <option value="am">am</option>
+                                    <option value="pm">pm</option>
+                                    <option value="both">both</option>
+                                </select>
                             </div>
                         </div>
 
@@ -2327,6 +2339,15 @@
                             if (value !== 'yes') document.getElementById('meditationMins').value = '';
                         }
                     }
+
+                    // Show/hide exercise time sub-field
+                    if (fieldName === 'exercise') {
+                        const timeRow = document.getElementById('exerciseTimeRow');
+                        if (timeRow) {
+                            timeRow.style.display = value === 'yes' ? 'block' : 'none';
+                            if (value !== 'yes') document.getElementById('exerciseTime').value = '';
+                        }
+                    }
                 });
             });
 
@@ -2677,6 +2698,9 @@
                 crafting: document.getElementById('crafting').value,
                 baking: document.getElementById('baking').value,
                 exercise: document.getElementById('exercise').value,
+                exerciseTime: document.getElementById('exercise').value === 'yes'
+                    ? (document.getElementById('exerciseTime').value || null)
+                    : null,
                 weed: document.getElementById('weed').value,
                 meditation: document.getElementById('meditation').value,
                 meditationMins: document.getElementById('meditation').value === 'yes'
@@ -2748,6 +2772,12 @@
             if (minsRowReset) { minsRowReset.style.display = 'none'; }
             const minsInputReset = document.getElementById('meditationMins');
             if (minsInputReset) { minsInputReset.value = ''; }
+
+            // Reset exercise time sub-field
+            const exTimeRowReset = document.getElementById('exerciseTimeRow');
+            if (exTimeRowReset) { exTimeRowReset.style.display = 'none'; }
+            const exTimeInputReset = document.getElementById('exerciseTime');
+            if (exTimeInputReset) { exTimeInputReset.value = ''; }
 
             // Reset supplements
             toggleSupplements('same');
@@ -2834,6 +2864,19 @@
                 } else {
                     meditationMinsRow.style.display = 'none';
                     meditationMinsInput.value = '';
+                }
+            }
+
+            // Show/populate exercise time sub-field if needed
+            const exerciseTimeRow = document.getElementById('exerciseTimeRow');
+            const exerciseTimeInput = document.getElementById('exerciseTime');
+            if (exerciseTimeRow && exerciseTimeInput) {
+                if (entry.exercise === 'yes') {
+                    exerciseTimeRow.style.display = 'block';
+                    exerciseTimeInput.value = entry.exerciseTime || '';
+                } else {
+                    exerciseTimeRow.style.display = 'none';
+                    exerciseTimeInput.value = '';
                 }
             }
 

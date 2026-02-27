@@ -3894,6 +3894,194 @@
                 }
             }
 
+            // ── 9. Exercise → symptom burden ─────────────────────────────────
+            {
+                const withEx    = last14.filter(e => e.exercise && e.exercise.toLowerCase() !== 'no' && e.exercise !== '');
+                const withoutEx = last14.filter(e => !e.exercise || e.exercise.toLowerCase() === 'no');
+                if (withEx.length >= 3 && withoutEx.length >= 3) {
+                    const avgWith    = avgArr(withEx.map(burden));
+                    const avgWithout = avgArr(withoutEx.map(burden));
+                    const diff = avgWith - avgWithout;
+                    if (Math.abs(diff) > 0.2) {
+                        if (diff < 0) {
+                            html += card('exercise & symptoms', `symptom burden on exercise days averages <span class="trend-down">${avgWith.toFixed(1)}</span> vs <span class="trend-up">${avgWithout.toFixed(1)}</span> on rest days — movement seems to help.`);
+                        } else {
+                            html += card('exercise & symptoms', `symptom burden on exercise days (<span class="trend-up">${avgWith.toFixed(1)}</span>) is higher than rest days (<span class="trend-down">${avgWithout.toFixed(1)}</span>). this may reflect post-exertion patterns worth watching.`);
+                        }
+                    }
+                }
+            }
+
+            // ── 10. Meditation → anxiety ──────────────────────────────────────
+            {
+                const withMed    = last14.filter(e => e.meditation && e.meditation.toLowerCase() === 'yes');
+                const withoutMed = last14.filter(e => !e.meditation || e.meditation.toLowerCase() === 'no');
+                if (withMed.length >= 3 && withoutMed.length >= 3) {
+                    const anxFor = arr => avgArr(arr.flatMap(e => [sev(e.anxietyAM), sev(e.anxietyPM)]).filter(v => v >= 0));
+                    const avgWith    = anxFor(withMed);
+                    const avgWithout = anxFor(withoutMed);
+                    if (avgWith !== null && avgWithout !== null && Math.abs(avgWith - avgWithout) > 0.2) {
+                        if (avgWith < avgWithout) {
+                            html += card('meditation & anxiety', `anxiety on meditation days averages <span class="trend-down">${avgWith.toFixed(1)}</span> vs <span class="trend-up">${avgWithout.toFixed(1)}</span> without — a meaningful difference.`);
+                        } else {
+                            html += card('meditation & anxiety', `anxiety is higher on meditation days (<span class="trend-up">${avgWith.toFixed(1)}</span>) vs without (<span class="trend-down">${avgWithout.toFixed(1)}</span>) — you may be turning to meditation on harder days.`);
+                        }
+                    }
+                }
+            }
+
+            // ── 11. Weed → anxiety & brain fog ───────────────────────────────
+            {
+                const withWeed    = last14.filter(e => e.weed && e.weed.toLowerCase() !== 'no' && e.weed !== '');
+                const withoutWeed = last14.filter(e => !e.weed || e.weed.toLowerCase() === 'no');
+                if (withWeed.length >= 3 && withoutWeed.length >= 3) {
+                    const anxFor = arr => avgArr(arr.flatMap(e => [sev(e.anxietyAM), sev(e.anxietyPM)]).filter(v => v >= 0));
+                    const fogFor = arr => avgArr(arr.flatMap(e => [sev(e.brainFogAM), sev(e.brainFogPM)]).filter(v => v >= 0));
+                    const anxWith = anxFor(withWeed), anxWithout = anxFor(withoutWeed);
+                    const fogWith = fogFor(withWeed), fogWithout = fogFor(withoutWeed);
+                    const anxDiff = (anxWith != null && anxWithout != null) ? anxWith - anxWithout : 0;
+                    const fogDiff = (fogWith != null && fogWithout != null) ? fogWith - fogWithout : 0;
+                    if (Math.abs(anxDiff) > 0.25 || Math.abs(fogDiff) > 0.25) {
+                        let msg = '';
+                        if (Math.abs(anxDiff) > 0.25) msg += `anxiety: <span class="${anxDiff < 0 ? 'trend-down' : 'trend-up'}">${anxWith.toFixed(1)}</span> vs ${anxWithout.toFixed(1)} without. `;
+                        if (Math.abs(fogDiff) > 0.25)  msg += `brain fog: <span class="${fogDiff < 0 ? 'trend-down' : 'trend-up'}">${fogWith.toFixed(1)}</span> vs ${fogWithout.toFixed(1)} without.`;
+                        html += card('weed & symptoms', msg.trim());
+                    }
+                }
+            }
+
+            // ── 12. Screentime → brain fog ────────────────────────────────────
+            {
+                const screenMap = { 'none':0, 'low':1, 'moderate':2, 'high':3 };
+                const days = last14.filter(e => e.screentime && (e.brainFogAM || e.brainFogPM));
+                if (days.length >= 5) {
+                    const low  = days.filter(e => (screenMap[e.screentime?.toLowerCase()] ?? 0) <= 1);
+                    const high = days.filter(e => (screenMap[e.screentime?.toLowerCase()] ?? 0) >= 2);
+                    if (low.length >= 2 && high.length >= 2) {
+                        const fogLow  = avgArr(low.map(e  => Math.max(sev(e.brainFogAM), sev(e.brainFogPM))));
+                        const fogHigh = avgArr(high.map(e => Math.max(sev(e.brainFogAM), sev(e.brainFogPM))));
+                        if (fogLow !== null && fogHigh !== null && Math.abs(fogHigh - fogLow) > 0.25) {
+                            html += card('screentime & brain fog', `brain fog on high-screentime days averages <span class="${fogHigh > fogLow ? 'trend-up' : 'trend-down'}">${fogHigh.toFixed(1)}</span> vs <span class="trend-flat">${fogLow.toFixed(1)}</span> on low-screentime days.`);
+                        }
+                    }
+                }
+            }
+
+            // ── 13. Social activity → mood ────────────────────────────────────
+            {
+                const socialFields = ['family','friends','ernestHang','dateActivity'];
+                const hasSocial = e => socialFields.some(f => e[f] && e[f].toLowerCase() !== 'no' && e[f] !== '');
+                const withSocial    = last14.filter(hasSocial);
+                const withoutSocial = last14.filter(e => !hasSocial(e));
+                if (withSocial.length >= 3 && withoutSocial.length >= 3) {
+                    const moodFor   = arr => avgArr(arr.map(e => moodMap[e.moodPM?.toLowerCase()] ?? 0).filter(v => v > 0));
+                    const moodWith    = moodFor(withSocial);
+                    const moodWithout = moodFor(withoutSocial);
+                    if (moodWith !== null && moodWithout !== null && Math.abs(moodWith - moodWithout) > 0.3) {
+                        const moodLabel = v => v<=1.5?'terrible':v<=2.5?'bad':v<=3.5?'okay':v<=4.5?'good':'great';
+                        html += card('social & mood', `evening mood on social days averages <span class="${moodWith > moodWithout ? 'trend-down' : 'trend-up'}">${moodLabel(moodWith)}</span> vs <span class="${moodWith > moodWithout ? 'trend-up' : 'trend-down'}">${moodLabel(moodWithout)}</span> on solo days.`);
+                    }
+                }
+            }
+
+            // ── 14. Period → symptom burden ───────────────────────────────────
+            {
+                const periodDays    = last14.filter(e => e.periodDay && e.periodDay.toLowerCase() !== 'no' && e.periodDay !== '');
+                const nonPeriodDays = last14.filter(e => !e.periodDay || e.periodDay.toLowerCase() === 'no');
+                if (periodDays.length >= 2 && nonPeriodDays.length >= 3) {
+                    const avgPeriod = avgArr(periodDays.map(burden));
+                    const avgNon    = avgArr(nonPeriodDays.map(burden));
+                    if (avgPeriod !== null && avgNon !== null && Math.abs(avgPeriod - avgNon) > 0.2) {
+                        html += card('cycle & symptoms', `symptom burden during your period averages <span class="trend-up">${avgPeriod.toFixed(1)}</span> vs <span class="trend-down">${avgNon.toFixed(1)}</span> on non-period days — a noticeable pattern.`);
+                    }
+                }
+            }
+
+            // ── 15. Atrantil → bloating ───────────────────────────────────────
+            {
+                const withAtr    = last14.filter(e => e.atrantil && e.atrantil.toLowerCase() !== 'no' && e.atrantil !== '');
+                const withoutAtr = last14.filter(e => !e.atrantil || e.atrantil.toLowerCase() === 'no');
+                if (withAtr.length >= 3 && withoutAtr.length >= 3) {
+                    const bloatFor   = arr => avgArr(arr.flatMap(e => [sev(e.bloatingAM), sev(e.bloatingPM)]).filter(v => v >= 0));
+                    const bloatWith    = bloatFor(withAtr);
+                    const bloatWithout = bloatFor(withoutAtr);
+                    if (bloatWith !== null && bloatWithout !== null && Math.abs(bloatWith - bloatWithout) > 0.2) {
+                        if (bloatWith < bloatWithout) {
+                            html += card('atrantil & bloating', `bloating averages <span class="trend-down">${bloatWith.toFixed(1)}</span> on atrantil days vs <span class="trend-up">${bloatWithout.toFixed(1)}</span> without — a positive association.`);
+                        } else {
+                            html += card('atrantil & bloating', `bloating on atrantil days (<span class="trend-up">${bloatWith.toFixed(1)}</span>) is higher than without (<span class="trend-down">${bloatWithout.toFixed(1)}</span>). you may be reaching for it on already-symptomatic days.`);
+                        }
+                    }
+                }
+            }
+
+            // ── 16. Readiness → symptom burden ────────────────────────────────
+            {
+                const readDays = last14.filter(e => e.readiness != null && e.readiness > 0);
+                if (readDays.length >= 5) {
+                    const sorted = [...readDays].sort((a,b) => a.readiness - b.readiness);
+                    const mid  = Math.floor(sorted.length / 2);
+                    const low  = sorted.slice(0, mid);
+                    const high = sorted.slice(mid);
+                    const avgLow  = avgArr(low.map(burden));
+                    const avgHigh = avgArr(high.map(burden));
+                    if (avgLow !== null && avgHigh !== null && Math.abs(avgLow - avgHigh) > 0.2) {
+                        if (avgLow > avgHigh) {
+                            html += card('readiness & symptoms', `on low-readiness days, symptom burden averages <span class="trend-up">${avgLow.toFixed(1)}</span> vs <span class="trend-down">${avgHigh.toFixed(1)}</span> on high-readiness days — oura readiness tracks well with how you feel.`);
+                        } else {
+                            html += card('readiness & symptoms', `symptom burden is slightly higher on high-readiness days (<span class="trend-up">${avgHigh.toFixed(1)}</span> vs <span class="trend-down">${avgLow.toFixed(1)}</span>). readiness may not fully capture what drives your symptoms.`);
+                        }
+                    }
+                }
+            }
+
+            // ── 17. Sleep quality → next-day symptom burden ───────────────────
+            {
+                const qualMap = { 'poor':1, 'fair':2, 'good':3, 'great':4 };
+                const pairs = [];
+                for (let i = 0; i < entries.length - 1; i++) {
+                    const qual = qualMap[entries[i+1]?.sleepQuality?.toLowerCase()];
+                    if (qual) pairs.push({ qual, b: burden(entries[i]) });
+                }
+                if (pairs.length >= 6) {
+                    const poor = pairs.filter(p => p.qual <= 2);
+                    const good = pairs.filter(p => p.qual >= 3);
+                    if (poor.length >= 2 && good.length >= 2) {
+                        const avgPoor = avgArr(poor.map(p => p.b));
+                        const avgGood = avgArr(good.map(p => p.b));
+                        if (avgPoor !== null && avgGood !== null && avgPoor - avgGood > 0.25) {
+                            html += card('sleep quality → next day', `after poor/fair sleep, next-day symptom burden averages <span class="trend-up">${avgPoor.toFixed(1)}</span> vs <span class="trend-down">${avgGood.toFixed(1)}</span> after good/great sleep.`);
+                        }
+                    }
+                }
+            }
+
+            // ── 18. Meal keyword → symptoms ───────────────────────────────────
+            {
+                const mealFields = ['breakfast','lunch','dinner','snacks'];
+                const hasKw = (e, kw) => mealFields.some(f => (e[f]||'').toLowerCase().includes(kw));
+                const kwTargets = {
+                    'coffee':   { fields: ['headacheAM','headachePM','anxietyAM','anxietyPM'], label: 'headache/anxiety' },
+                    'alcohol':  { fields: ['headacheAM','headachePM','fatigueAM','fatiguePM'], label: 'headache/fatigue' },
+                    'dairy':    { fields: ['bloatingAM','bloatingPM'], label: 'bloating' },
+                    'gluten':   { fields: ['bloatingAM','bloatingPM','brainFogAM','brainFogPM'], label: 'bloating/brain fog' },
+                    'bread':    { fields: ['bloatingAM','bloatingPM','brainFogAM','brainFogPM'], label: 'bloating/brain fog' },
+                    'sugar':    { fields: ['brainFogPM','headachePM','anxietyPM'], label: 'brain fog/headache' },
+                };
+                Object.entries(kwTargets).forEach(([kw, { fields: symFields, label }]) => {
+                    const withKw    = last14.filter(e => hasKw(e, kw));
+                    const withoutKw = last14.filter(e => !hasKw(e, kw));
+                    if (withKw.length >= 3 && withoutKw.length >= 3) {
+                        const sympFor = arr => avgArr(arr.flatMap(e => symFields.map(f => sev(e[f]))).filter(v => v >= 0));
+                        const avgWith    = sympFor(withKw);
+                        const avgWithout = sympFor(withoutKw);
+                        if (avgWith !== null && avgWithout !== null && avgWith - avgWithout > 0.35) {
+                            html += card(`${kw} & symptoms`, `on days with ${kw}, ${label} averages <span class="trend-up">${avgWith.toFixed(1)}</span> vs <span class="trend-down">${avgWithout.toFixed(1)}</span> without — worth monitoring.`);
+                        }
+                    }
+                });
+            }
+
             insightsContent.innerHTML = html || '<div class="insight-card"><strong>keep logging</strong>more days of data will unlock detailed correlations.</div>';
         }
 

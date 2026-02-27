@@ -1,0 +1,3974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Firebase compat SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- PWA -->
+    <meta name="theme-color" content="#0000FF">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Health Tracker">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --black: #000000;
+            --white: #FFFFFF;
+            --blue: #0000FF;
+            --gray-bg: #F7F7F7;
+            --gray-light: #E8E8E8;
+            --gray-border: #D0D0D0;
+            --pastel-green: #E8F5E9;
+            --pastel-red: #FFEBEE;
+            --pastel-yellow: #FFF9E6;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--white);
+            color: var(--black);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px 24px;
+        }
+
+        /* Typography */
+        h1 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+            color: var(--blue);
+            text-transform: lowercase;
+        }
+
+        .subtitle {
+            font-size: 0.65rem;
+            text-transform: lowercase;
+            letter-spacing: 0.1em;
+            color: var(--black);
+            font-weight: 400;
+            margin-bottom: 0;
+        }
+
+        /* Header */
+        header {
+            border-bottom: 1px solid var(--black);
+            padding-bottom: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        /* Buttons */
+        .btn {
+            background: var(--black);
+            color: var(--white);
+            border: 1px solid var(--black);
+            padding: 8px 16px;
+            font-size: 0.65rem;
+            text-transform: lowercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .btn:hover {
+            background: var(--white);
+            color: var(--black);
+        }
+
+        .btn-secondary {
+            background: var(--white);
+            color: var(--black);
+        }
+
+        .btn-secondary:hover {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        /* Navigation */
+        nav {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        nav button {
+            background: var(--gray-bg);
+            border: none;
+            padding: 10px 20px;
+            font-size: 0.65rem;
+            text-transform: lowercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            color: var(--black);
+            font-weight: 500;
+            transition: all 0.2s ease;
+            font-family: 'JetBrains Mono', monospace;
+            flex: 1;
+        }
+
+        nav button:hover {
+            background: var(--gray-light);
+        }
+
+        nav button.active {
+            background: var(--blue);
+            color: var(--white);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 48px;
+        }
+
+        .stat-card {
+            background: var(--gray-bg);
+            padding: 32px;
+            border: 1px solid var(--gray-border);
+        }
+
+        .stat-label {
+            font-size: 0.65rem;
+            text-transform: lowercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 12px;
+            font-weight: 500;
+            color: var(--blue);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        /* Charts */
+        .chart-container {
+            background: var(--gray-bg);
+            padding: 40px;
+            margin-bottom: 32px;
+            border: 1px solid var(--gray-border);
+        }
+
+        .chart-title {
+            font-size: 0.65rem;
+            text-transform: lowercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 24px;
+            font-weight: 500;
+            color: var(--blue);
+        }
+
+        /* NEW ENTRY FORM - Hover reveal design */
+        .section-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            text-transform: lowercase;
+            letter-spacing: 0.05em;
+            color: var(--blue);
+        }
+
+        .category-group {
+            margin-bottom: 16px;
+        }
+
+        .category-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: lowercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+            color: var(--black);
+        }
+
+        .field-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        /* Field Container with hover reveal */
+        .field-container {
+            position: relative;
+            background: var(--gray-bg);
+            border: 1px solid var(--gray-border);
+            min-height: 100px;
+            padding: 12px;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .field-container.selected-good {
+            background: var(--pastel-green);
+            border-color: #81C784;
+        }
+
+        .field-container.selected-bad {
+            background: var(--pastel-red);
+            border-color: #E57373;
+        }
+
+        .field-container.selected-neutral {
+            background: var(--pastel-yellow);
+            border-color: #FFD54F;
+        }
+
+        .field-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--blue);
+            text-transform: lowercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .field-value-display {
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: var(--black);
+            position: relative;
+            z-index: 2;
+            min-height: 16px;
+        }
+
+        /* Options list - hidden by default */
+        .options-list {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .field-container:hover {
+            z-index: 10;
+        }
+
+        .field-container:hover .field-value-display {
+            opacity: 0;
+        }
+
+        .field-container:hover .options-list {
+            max-height: 100px;
+            overflow-y: auto;
+            pointer-events: auto;
+            padding-top: 28px;
+        }
+
+        .options-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .options-list::-webkit-scrollbar-thumb {
+            background: var(--gray-border);
+        }
+
+        /* Fade out gradient at top */
+        .options-list::before {
+            content: '';
+            position: sticky;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 24px;
+            background: linear-gradient(to bottom, var(--gray-bg) 0%, transparent 100%);
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        .field-container.selected-good .options-list::before {
+            background: linear-gradient(to bottom, var(--pastel-green) 0%, transparent 100%);
+        }
+
+        .field-container.selected-bad .options-list::before {
+            background: linear-gradient(to bottom, var(--pastel-red) 0%, transparent 100%);
+        }
+
+        .field-container.selected-neutral .options-list::before {
+            background: linear-gradient(to bottom, var(--pastel-yellow) 0%, transparent 100%);
+        }
+
+        .option-item {
+            padding: 6px 12px;
+            font-size: 0.65rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            color: var(--black);
+            font-weight: 500;
+            text-transform: lowercase;
+        }
+
+        .option-item:hover {
+            background: rgba(0, 0, 255, 0.1);
+        }
+
+        .option-item.selected {
+            font-weight: 700;
+            color: var(--blue);
+        }
+
+        /* Text inputs */
+        .field-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--gray-border);
+            background: var(--white);
+            font-size: 0.7rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .field-input:focus {
+            outline: none;
+            border-color: var(--blue);
+        }
+
+        /* Text area for notes */
+        textarea.field-input {
+            min-height: 60px;
+            resize: vertical;
+        }
+
+        /* History */
+        .entry-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            background: var(--gray-border);
+        }
+
+        .entry-item {
+            padding: 20px 28px;
+            background: var(--white);
+            display: grid;
+            grid-template-columns: 160px 1fr auto;
+            gap: 28px;
+            align-items: center;
+            transition: background 0.15s ease;
+        }
+
+        .entry-item:hover {
+            background: var(--gray-bg);
+        }
+
+        .entry-date {
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .entry-details {
+            font-size: 0.75rem;
+            color: #666;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .entry-tag {
+            padding: 4px 10px;
+            background: var(--gray-bg);
+            font-size: 0.65rem;
+            font-weight: 500;
+            text-transform: lowercase;
+            letter-spacing: 0.05em;
+            border: 1px solid var(--gray-border);
+        }
+
+        .entry-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-text {
+            background: none;
+            border: 1px solid transparent;
+            font-size: 0.65rem;
+            text-transform: lowercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            color: var(--black);
+            font-weight: 500;
+            padding: 6px 12px;
+            font-family: 'JetBrains Mono', monospace;
+            transition: all 0.2s ease;
+        }
+
+        .btn-text:hover {
+            border-color: var(--black);
+        }
+
+        .btn-text.delete:hover {
+            border-color: var(--black);
+            background: var(--black);
+            color: var(--white);
+        }
+
+        /* Messages */
+        .message {
+            padding: 10px 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--blue);
+            background: var(--gray-bg);
+            display: none;
+            font-size: 0.65rem;
+            font-weight: 500;
+            color: var(--blue);
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 80px 32px;
+            color: #999;
+        }
+
+        .empty-state-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            text-transform: lowercase;
+        }
+
+        .empty-state-text {
+            font-size: 0.75rem;
+            text-transform: lowercase;
+            letter-spacing: 0.1em;
+        }
+
+        /* Insights */
+        .insight-grid {
+            display: grid;
+            gap: 1px;
+            background: var(--gray-border);
+        }
+
+        .insight-card {
+            background: var(--white);
+            padding: 24px;
+            font-size: 0.82rem;
+            line-height: 1.7;
+        }
+
+        .insight-card strong {
+            font-weight: 700;
+            text-transform: lowercase;
+            font-size: 0.68rem;
+            letter-spacing: 0.1em;
+            display: block;
+            margin-bottom: 8px;
+            color: var(--blue);
+        }
+
+        .insight-card .trend-up   { color: #E57373; }
+        .insight-card .trend-down { color: #66BB6A; }
+        .insight-card .trend-flat { color: #888; }
+
+        /* Oura section */
+        .oura-section {
+            border: 1px solid var(--gray-border);
+            margin-bottom: 28px;
+            background: var(--white);
+        }
+
+        .oura-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .oura-header:hover { background: var(--gray-bg); }
+
+        .oura-header .section-title {
+            margin: 0;
+            flex: 1;
+        }
+
+        .oura-badge {
+            font-size: 0.62rem;
+            font-weight: 600;
+            letter-spacing: 0.07em;
+            padding: 3px 8px;
+            border: 1px solid;
+        }
+
+        .oura-badge.connected    { color: #66BB6A; border-color: #66BB6A; }
+        .oura-badge.disconnected { color: #aaa;    border-color: #aaa; }
+
+        .oura-body {
+            border-top: 1px solid var(--gray-border);
+            padding: 20px;
+        }
+
+        .oura-token-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .oura-token-input {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid var(--gray-border);
+            font-family: inherit;
+            font-size: 0.75rem;
+            background: var(--gray-bg);
+        }
+
+        .oura-hint {
+            font-size: 0.68rem;
+            color: var(--gray-text);
+            line-height: 1.5;
+        }
+
+        .oura-hint a { color: var(--blue); }
+
+        .oura-meta {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 16px;
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid var(--gray-border);
+            font-size: 0.65rem;
+            color: var(--gray-text);
+        }
+
+        .oura-error {
+            color: #E57373;
+            font-size: 0.7rem;
+            margin-top: 8px;
+            display: none;
+        }
+
+        /* GANTT chart */
+        .gantt-outer {
+            margin: 50px;
+        }
+
+        .gantt-scroll-container {
+            overflow-x: auto;
+            border: 1px solid var(--gray-border);
+            -webkit-overflow-scrolling: touch;
+            background: var(--white);
+        }
+
+        .gantt-inner {
+            min-width: 750px;
+            padding: 20px 20px 16px 20px;
+        }
+
+        .gantt-header {
+            display: flex;
+            border-bottom: 1px solid var(--gray-border);
+            margin-bottom: 4px;
+            padding-bottom: 8px;
+        }
+
+        .gantt-label-col {
+            min-width: 160px;
+            width: 160px;
+            flex-shrink: 0;
+            font-size: 0.72rem;
+            color: var(--gray-text);
+            letter-spacing: 0.05em;
+            text-transform: lowercase;
+            padding-right: 16px;
+            position: sticky;
+            left: 0;
+            background: var(--white);
+            z-index: 2;
+        }
+
+        .gantt-timeline-col {
+            flex: 1;
+            position: relative;
+            min-width: 0;
+        }
+
+        .gantt-date-tick {
+            position: absolute;
+            font-size: 0.65rem;
+            color: var(--gray-text);
+            transform: translateX(-50%);
+            white-space: nowrap;
+        }
+
+        .gantt-row {
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--gray-border);
+        }
+
+        .gantt-row-label {
+            min-width: 160px;
+            width: 160px;
+            flex-shrink: 0;
+            padding-right: 16px;
+            font-size: 0.78rem;
+            line-height: 1.3;
+            position: sticky;
+            left: 0;
+            background: var(--white);
+            z-index: 2;
+        }
+
+        .gantt-row-track {
+            flex: 1;
+            position: relative;
+            min-width: 0;
+            /* height set inline per row */
+        }
+
+        .gantt-bar {
+            position: absolute;
+            /* height and top set inline per bar based on dose */
+            border-radius: 3px;
+            opacity: 0.9;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            padding: 0 6px;
+            box-sizing: border-box;
+        }
+
+        .gantt-bar-label {
+            font-size: 0.58rem;
+            color: rgba(255,255,255,0.95);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            pointer-events: none;
+            letter-spacing: 0;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .gantt-bar.am { background: var(--blue); }
+        .gantt-bar.pm { background: #7ab8e8; }
+        .gantt-bar.asneeded { background: #a8d5a2; }
+        .gantt-bar.asneeded .gantt-bar-label { color: rgba(0, 60, 0, 0.85); }
+
+        .gantt-legend {
+            display: flex;
+            gap: 18px;
+            margin-top: 16px;
+            font-size: 0.72rem;
+            color: var(--gray-text);
+        }
+
+        .gantt-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .gantt-legend-swatch {
+            width: 16px;
+            height: 10px;
+            border-radius: 2px;
+        }
+
+        /* Submit area */
+        .submit-area {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        /* Login overlay */
+        .login-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .login-card {
+            text-align: center;
+            padding: 60px 40px;
+            border: 1px solid var(--gray-border);
+            background: var(--gray-bg);
+            max-width: 380px;
+            width: 90%;
+        }
+
+        .login-card h1 {
+            margin-bottom: 8px;
+        }
+
+        .login-card .subtitle {
+            margin-bottom: 36px;
+            display: block;
+        }
+
+        .btn-google {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 14px 20px;
+            background: var(--black);
+            color: var(--white);
+            border: none;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            text-transform: lowercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+        }
+
+        .btn-google:hover {
+            opacity: 0.85;
+        }
+
+        .user-indicator {
+            font-size: 0.6rem;
+            color: var(--gray-text);
+            align-self: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 160px;
+        }
+
+        /* ── Mobile: tap to expand box in place ────────────────────────────────
+           Strategy: switch the options-list from position:absolute (overlay)
+           to position:relative (flows in document) so the container itself
+           grows downward to fit the options. Tap a value → JS removes
+           touch-active → container collapses back to its resting size.
+        ──────────────────────────────────────────────────────────────────── */
+        /* Touch device overrides — applied via JS body.touch-device class
+           (more reliable than @media (hover: none) which iOS Safari ignores) */
+
+        /* Disable CSS hover reveal on touch devices */
+        .touch-device .field-container:hover { z-index: auto; }
+        .touch-device .field-container:hover .field-value-display { opacity: 1; }
+        .touch-device .field-container:hover .options-list {
+            max-height: 0 !important;
+            pointer-events: none;
+            padding-top: 0;
+        }
+
+        /* All touch containers: no overflow clipping, fast tap, flex row layout */
+        .touch-device .field-container {
+            overflow: visible;
+            touch-action: manipulation;
+            transition: border-color 0.15s ease;
+            min-height: 52px;
+            padding: 10px 14px;      /* explicit so negative margins below can match */
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0;
+        }
+
+        /* Label fixed on the left */
+        .touch-device .field-container .field-label {
+            flex: 0 0 auto;
+            margin-bottom: 0;
+            margin-right: 10px;
+            min-width: 120px;
+        }
+
+        /* Current-value display fills the rest of the row, right-aligned */
+        .touch-device .field-container .field-value-display {
+            flex: 1 1 auto;
+            text-align: right;
+            min-height: auto;
+        }
+
+        /* Text / number / time / date inputs fill remaining width after the label */
+        .touch-device .field-container > .field-input {
+            flex: 1 1 auto;
+            width: auto;             /* override the default width:100% */
+            min-width: 0;
+            margin-top: 0;
+        }
+
+        /* Day-of-week label (date field only) wraps to its own row */
+        .touch-device .field-container #entryDateDow {
+            flex: 0 0 100%;
+            margin-top: 2px;
+        }
+
+        /* Textarea always takes full width */
+        .touch-device .field-container textarea.field-input {
+            flex: 0 0 100%;
+            width: 100%;
+            margin-top: 6px;
+        }
+
+        /* Options list: in-flow full-width row, collapsed by default.
+           Negative margin = container padding so the list bleeds edge-to-edge. */
+        .touch-device .field-container .options-list {
+            flex: 0 0 100%;
+            position: relative;
+            bottom: auto; left: auto; right: auto;
+            max-height: 0;
+            overflow: hidden;
+            pointer-events: none;
+            padding-top: 0;
+            background: var(--white);
+            border-top: none;
+            margin: 0 -14px -10px -14px;
+            transition: none;
+        }
+
+        /* Touch-active: highlight border, bring to front */
+        .touch-device .field-container.touch-active {
+            z-index: 200;
+            border-color: var(--blue);
+            align-items: flex-start;
+        }
+
+        /* Keep label and value readable when open */
+        .touch-device .field-container.touch-active .field-value-display { opacity: 1; }
+
+        /* Expanded options list — !important beats the hover !important above */
+        .touch-device .field-container.touch-active .options-list {
+            max-height: 260px !important;
+            overflow-y: auto !important;
+            pointer-events: auto !important;
+            border-top: 1px solid var(--gray-border);
+            margin: 8px -14px -10px -14px;
+            padding-top: 0 !important;
+        }
+
+        /* Large easy-to-tap option rows */
+        .touch-device .option-item {
+            padding: 13px 14px;
+            font-size: 0.82rem;
+            border-bottom: 1px solid var(--gray-border);
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+        }
+        .touch-device .option-item:last-child { border-bottom: none; }
+
+        /* Responsive */
+        @media (max-width: 1400px) {
+            .field-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .field-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.4rem;
+            }
+
+            .container {
+                padding: 16px;
+            }
+
+            header {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .header-actions {
+                margin-top: 0;
+                flex-wrap: wrap;
+            }
+
+            nav {
+                gap: 4px;
+                flex-wrap: wrap;
+            }
+
+            nav button {
+                padding: 10px 8px;
+                font-size: 0.6rem;
+                flex: 1 1 40%;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+
+            .stat-card {
+                padding: 16px;
+            }
+
+            .stat-value {
+                font-size: 1.8rem;
+            }
+
+            .field-grid {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .field-container {
+                min-height: 64px;
+                padding: 10px 14px;
+            }
+
+            .entry-item {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .chart-container {
+                padding: 20px;
+            }
+
+            .section-title {
+                font-size: 1.3rem;
+            }
+
+            /* Larger tap targets for options */
+            .option-item {
+                padding: 10px 12px;
+                font-size: 0.75rem;
+            }
+
+            .user-indicator {
+                max-width: 120px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .field-grid {
+                grid-template-columns: 1fr;
+            }
+
+            nav button {
+                flex: 1 1 45%;
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Hide default inputs */
+        select {
+            display: none;
+        }
+
+        /* Supplement tracking */
+        .supplement-toggle {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .supplement-option {
+            background: var(--gray-bg);
+            border: 1px solid var(--gray-border);
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.7rem;
+            font-weight: 500;
+            text-transform: lowercase;
+        }
+
+        .supplement-option:hover {
+            background: var(--gray-light);
+        }
+
+        .supplement-option.selected {
+            background: var(--blue);
+            color: var(--white);
+            border-color: var(--blue);
+        }
+
+        .supplement-details {
+            display: none;
+            margin-top: 12px;
+        }
+
+        .supplement-details.active {
+            display: block;
+        }
+
+        .supplement-line {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 2fr auto;
+            gap: 8px;
+            margin-bottom: 8px;
+            align-items: start;
+        }
+
+        .supplement-line input,
+        .supplement-line select {
+            padding: 8px;
+            border: 1px solid var(--gray-border);
+            background: var(--white);
+            font-size: 0.65rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            display: block;
+        }
+
+        .supplement-line select {
+            display: block !important;
+        }
+
+        .supplement-line .btn-text {
+            padding: 8px;
+            margin: 0;
+        }
+
+        .add-supplement-btn {
+            background: var(--gray-bg);
+            border: 1px solid var(--gray-border);
+            padding: 8px 16px;
+            font-size: 0.65rem;
+            text-transform: lowercase;
+            cursor: pointer;
+            font-weight: 500;
+            font-family: 'JetBrains Mono', monospace;
+            width: 100%;
+            margin-top: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .add-supplement-btn:hover {
+            background: var(--gray-light);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>new entry</h1>
+                <div class="subtitle">health tracker</div>
+            </div>
+            <div class="header-actions">
+                <span id="userEmail" class="user-indicator"></span>
+                <button class="btn btn-secondary" id="migrateBtn" onclick="migrateLocalData()" style="display:none">import local data</button>
+                <button class="btn btn-secondary" onclick="exportData()">export</button>
+                <button class="btn btn-secondary" onclick="importData()">import</button>
+                <button class="btn btn-secondary" onclick="handleSignOut()">sign out</button>
+            </div>
+        </header>
+
+        <nav>
+            <button onclick="switchTab('entry')">new entry</button>
+            <button onclick="switchTab('history')" class="active">archive</button>
+            <button onclick="switchTab('insights')">insights</button>
+            <button onclick="switchTab('supplements')">supplements</button>
+        </nav>
+
+        <!-- Entry Form -->
+        <div id="entry" class="tab-content">
+            <div id="editModeBanner" class="message">
+                edit mode — <button class="btn-text" onclick="cancelEdit()">cancel</button>
+            </div>
+
+            <div id="successMessage" class="message"></div>
+
+            <form id="healthForm" onsubmit="saveEntry(event)">
+                <!-- Timing & Sleep -->
+                <div class="category-group">
+                    <div class="category-title">timing & sleep</div>
+                    <div class="field-grid">
+                        <div class="field-container" data-field="date">
+                            <div class="field-label">date</div>
+                            <input type="date" id="entryDate" class="field-input" required>
+                            <div id="entryDateDow" style="font-size:11px;color:var(--gray-text);margin-top:3px;"></div>
+                        </div>
+                        <div class="field-container" data-field="wakeTime">
+                            <div class="field-label">wake time</div>
+                            <input type="time" id="wakeTime" class="field-input">
+                        </div>
+                        <div class="field-container" data-field="firstMealTime">
+                            <div class="field-label">sleep time</div>
+                            <input type="time" id="firstMealTime" class="field-input">
+                        </div>
+                        <div class="field-container" data-field="sleepHours">
+                            <div class="field-label">hours slept</div>
+                            <input type="number" id="sleepHours" class="field-input" min="0" max="24" step="0.1" placeholder="0">
+                        </div>
+
+                        <!-- Sleep Quality with options -->
+                        <div class="field-container" data-field="sleepQuality" data-type="select">
+                            <div class="field-label">sleep quality</div>
+                            <div class="field-value-display" data-display="sleepQuality"></div>
+                            <select id="sleepQuality">
+                                <option value=""></option>
+                                <option value="excellent">excellent</option>
+                                <option value="good">good</option>
+                                <option value="okay">okay</option>
+                                <option value="poor">poor</option>
+                            </select>
+                            <div class="options-list" data-options="sleepQuality">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="excellent" data-quality="good">excellent</div>
+                                <div class="option-item" data-value="good" data-quality="good">good</div>
+                                <div class="option-item" data-value="okay" data-quality="neutral">okay</div>
+                                <div class="option-item" data-value="poor" data-quality="bad">poor</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Daily Metrics -->
+                <div class="category-group">
+                    <div class="category-title">daily metrics</div>
+                    <div class="field-grid">
+                        <div class="field-container" data-field="water">
+                            <div class="field-label">water [oz]</div>
+                            <input type="number" id="water" class="field-input" min="0" step="0.5" placeholder="0">
+                        </div>
+                        <div class="field-container" data-field="stepsAM">
+                            <div class="field-label">steps [am]</div>
+                            <input type="number" id="stepsAM" class="field-input" min="0" placeholder="0">
+                        </div>
+                        <div class="field-container" data-field="stepsPM">
+                            <div class="field-label">steps [pm]</div>
+                            <input type="number" id="stepsPM" class="field-input" min="0" placeholder="0">
+                        </div>
+                        <div class="field-container" data-field="readiness">
+                            <div class="field-label">readiness</div>
+                            <input type="number" id="readiness" class="field-input" min="0" max="100" placeholder="0">
+                        </div>
+
+                        <!-- AM Mood -->
+                        <div class="field-container" data-field="moodAM" data-type="select">
+                            <div class="field-label">mood [am]</div>
+                            <div class="field-value-display" data-display="moodAM"></div>
+                            <select id="moodAM">
+                                <option value=""></option>
+                                <option value="terrible">terrible</option>
+                                <option value="bad">bad</option>
+                                <option value="okay">okay</option>
+                                <option value="good">good</option>
+                                <option value="great">great</option>
+                            </select>
+                            <div class="options-list" data-options="moodAM">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="terrible" data-quality="bad">terrible</div>
+                                <div class="option-item" data-value="bad" data-quality="bad">bad</div>
+                                <div class="option-item" data-value="okay" data-quality="neutral">okay</div>
+                                <div class="option-item" data-value="good" data-quality="good">good</div>
+                                <div class="option-item" data-value="great" data-quality="good">great</div>
+                            </div>
+                        </div>
+
+                        <!-- PM Mood -->
+                        <div class="field-container" data-field="moodPM" data-type="select">
+                            <div class="field-label">mood [pm]</div>
+                            <div class="field-value-display" data-display="moodPM"></div>
+                            <select id="moodPM">
+                                <option value=""></option>
+                                <option value="terrible">terrible</option>
+                                <option value="bad">bad</option>
+                                <option value="okay">okay</option>
+                                <option value="good">good</option>
+                                <option value="great">great</option>
+                            </select>
+                            <div class="options-list" data-options="moodPM">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="terrible" data-quality="bad">terrible</div>
+                                <div class="option-item" data-value="bad" data-quality="bad">bad</div>
+                                <div class="option-item" data-value="okay" data-quality="neutral">okay</div>
+                                <div class="option-item" data-value="good" data-quality="good">good</div>
+                                <div class="option-item" data-value="great" data-quality="good">great</div>
+                            </div>
+                        </div>
+
+                        <!-- AM Anxiety -->
+                        <div class="field-container" data-field="anxietyAM" data-type="select">
+                            <div class="field-label">anxiety [am]</div>
+                            <div class="field-value-display" data-display="anxietyAM"></div>
+                            <select id="anxietyAM">
+                                <option value=""></option>
+                                <option value="none">none</option>
+                                <option value="some">some</option>
+                                <option value="a lot">a lot</option>
+                                <option value="unbearable">unbearable</option>
+                            </select>
+                            <div class="options-list" data-options="anxietyAM">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="none" data-quality="good">none</div>
+                                <div class="option-item" data-value="some" data-quality="neutral">some</div>
+                                <div class="option-item" data-value="a lot" data-quality="bad">a lot</div>
+                                <div class="option-item" data-value="unbearable" data-quality="bad">unbearable</div>
+                            </div>
+                        </div>
+
+                        <!-- PM Anxiety -->
+                        <div class="field-container" data-field="anxietyPM" data-type="select">
+                            <div class="field-label">anxiety [pm]</div>
+                            <div class="field-value-display" data-display="anxietyPM"></div>
+                            <select id="anxietyPM">
+                                <option value=""></option>
+                                <option value="none">none</option>
+                                <option value="some">some</option>
+                                <option value="a lot">a lot</option>
+                                <option value="unbearable">unbearable</option>
+                            </select>
+                            <div class="options-list" data-options="anxietyPM">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="none" data-quality="good">none</div>
+                                <div class="option-item" data-value="some" data-quality="neutral">some</div>
+                                <div class="option-item" data-value="a lot" data-quality="bad">a lot</div>
+                                <div class="option-item" data-value="unbearable" data-quality="bad">unbearable</div>
+                            </div>
+                        </div>
+
+                        <!-- Screentime -->
+                        <div class="field-container" data-field="screentime" data-type="select">
+                            <div class="field-label">screentime</div>
+                            <div class="field-value-display" data-display="screentime"></div>
+                            <select id="screentime">
+                                <option value=""></option>
+                                <option value="0">0 hrs</option>
+                                <option value="0.5">0.5 hrs</option>
+                                <option value="1">1 hr</option>
+                                <option value="1.5">1.5 hrs</option>
+                                <option value="2">2 hrs</option>
+                                <option value="2.5">2.5 hrs</option>
+                                <option value="3">3 hrs</option>
+                                <option value="3.5">3.5 hrs</option>
+                                <option value="4">4 hrs</option>
+                                <option value="4.5">4.5 hrs</option>
+                                <option value="5">5 hrs</option>
+                                <option value="5.5">5.5 hrs</option>
+                                <option value="6">6 hrs</option>
+                                <option value="6.5">6.5 hrs</option>
+                                <option value="7">7 hrs</option>
+                                <option value="7.5">7.5 hrs</option>
+                                <option value="8">8 hrs</option>
+                                <option value="8.5">8.5 hrs</option>
+                                <option value="9">9 hrs</option>
+                                <option value="9.5">9.5 hrs</option>
+                                <option value="10">10 hrs</option>
+                                <option value="10.5">10.5 hrs</option>
+                                <option value="11">11 hrs</option>
+                                <option value="11.5">11.5 hrs</option>
+                                <option value="12">12 hrs</option>
+                            </select>
+                            <div class="options-list" data-options="screentime">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="0" data-quality="good">0 hrs</div>
+                                <div class="option-item" data-value="0.5" data-quality="good">0.5 hrs</div>
+                                <div class="option-item" data-value="1" data-quality="good">1 hr</div>
+                                <div class="option-item" data-value="1.5" data-quality="good">1.5 hrs</div>
+                                <div class="option-item" data-value="2" data-quality="good">2 hrs</div>
+                                <div class="option-item" data-value="2.5" data-quality="neutral">2.5 hrs</div>
+                                <div class="option-item" data-value="3" data-quality="neutral">3 hrs</div>
+                                <div class="option-item" data-value="3.5" data-quality="neutral">3.5 hrs</div>
+                                <div class="option-item" data-value="4" data-quality="neutral">4 hrs</div>
+                                <div class="option-item" data-value="4.5" data-quality="neutral">4.5 hrs</div>
+                                <div class="option-item" data-value="5" data-quality="neutral">5 hrs</div>
+                                <div class="option-item" data-value="5.5" data-quality="bad">5.5 hrs</div>
+                                <div class="option-item" data-value="6" data-quality="bad">6 hrs</div>
+                                <div class="option-item" data-value="6.5" data-quality="bad">6.5 hrs</div>
+                                <div class="option-item" data-value="7" data-quality="bad">7 hrs</div>
+                                <div class="option-item" data-value="7.5" data-quality="bad">7.5 hrs</div>
+                                <div class="option-item" data-value="8" data-quality="bad">8 hrs</div>
+                                <div class="option-item" data-value="8.5" data-quality="bad">8.5 hrs</div>
+                                <div class="option-item" data-value="9" data-quality="bad">9 hrs</div>
+                                <div class="option-item" data-value="9.5" data-quality="bad">9.5 hrs</div>
+                                <div class="option-item" data-value="10" data-quality="bad">10 hrs</div>
+                                <div class="option-item" data-value="10.5" data-quality="bad">10.5 hrs</div>
+                                <div class="option-item" data-value="11" data-quality="bad">11 hrs</div>
+                                <div class="option-item" data-value="11.5" data-quality="bad">11.5 hrs</div>
+                                <div class="option-item" data-value="12" data-quality="bad">12 hrs</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Symptoms -->
+                <div class="category-group">
+                    <div class="category-title">symptoms [am]</div>
+                    <div class="field-grid">
+                        <!-- Brain Fog AM -->
+                        <div class="field-container" data-field="brainFogAM" data-type="select">
+                            <div class="field-label">brain fog</div>
+                            <div class="field-value-display" data-display="brainFogAM"></div>
+                            <select id="brainFogAM">
+                                <option value=""></option>
+                                <option value="none">none</option>
+                                <option value="mild">mild</option>
+                                <option value="moderate">moderate</option>
+                                <option value="severe">severe</option>
+                            </select>
+                            <div class="options-list" data-options="brainFogAM">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="none" data-quality="good">none</div>
+                                <div class="option-item" data-value="mild" data-quality="neutral">mild</div>
+                                <div class="option-item" data-value="moderate" data-quality="bad">moderate</div>
+                                <div class="option-item" data-value="severe" data-quality="bad">severe</div>
+                            </div>
+                        </div>
+
+                        <!-- Bloating AM -->
+                        <div class="field-container" data-field="bloatingAM" data-type="select">
+                            <div class="field-label">bloating</div>
+                            <div class="field-value-display" data-display="bloatingAM"></div>
+                            <select id="bloatingAM">
+                                <option value=""></option>
+                                <option value="none">none</option>
+                                <option value="mild">mild</option>
+                                <option value="moderate">moderate</option>
+                                <option value="severe">severe</option>
+                            </select>
+                            <div class="options-list" data-options="bloatingAM">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="none" data-quality="good">none</div>
+                                <div class="option-item" data-value="mild" data-quality="neutral">mild</div>
+                                <div class="option-item" data-value="moderate" data-quality="bad">moderate</div>
+                                <div class="option-item" data-value="severe" data-quality="bad">severe</div>
+                            </div>
+                        </div>
+
+                        <!-- Fatigue AM -->
+                        <div class="field-container" data-field="fatigueAM" data-type="select">
+                            <div class="field-label">fatigue</div>
+                            <div class="field-value-display" data-display="fatigueAM"></div>
+                            <select id="fatigueAM">
+                                <option value=""></option>
+                                <option value="none">none</option>
+                                <option value="mild">mild</option>
+                                <option value="moderate">moderate</option>
+                                <option value="severe">severe</option>
+                            </select>
+                            <div class="options-list" data-options="fatigueAM">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="none" data-quality="good">none</div>
+                                <div class="option-item" data-value="mild" data-quality="neutral">mild</div>
+                                <div class="option-item" data-value="moderate" data-quality="bad">moderate</div>
+                                <div class="option-item" data-value="severe" data-quality="bad">severe</div>
+                            </div>
+                        </div>
+
+                        <!-- Sinus AM -->
+                        <div class="field-container" data-field="sinusAM" data-type="select">
+                            <div class="field-label">sinus</div>
+                            <div class="field-value-display" data-display="sinusAM"></div>
+                            <select id="sinusAM">
+                                <option value=""></option>
+                                <option value="clear">clear</option>
+                                <option value="mild">mild</option>
+                                <option value="moderate">moderate</option>
+                                <option value="severe">severe</option>
+                            </select>
+                            <div class="options-list" data-options="sinusAM">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="clear" data-quality="good">clear</div>
+                                <div class="option-item" data-value="mild" data-quality="neutral">mild</div>
+                                <div class="option-item" data-value="moderate" data-quality="bad">moderate</div>
+                                <div class="option-item" data-value="severe" data-quality="bad">severe</div>
+                            </div>
+                        </div>
+
+                        <!-- Headache AM -->
+                        <div class="field-container" data-field="headacheAM" data-type="select">
+                            <div class="field-label">headache</div>
+                            <div class="field-value-display" data-display="headacheAM"></div>
+                            <select id="headacheAM">
+                                <option value=""></option>
+                                <option value="no">no</option>
+                                <option value="mild">mild</option>
+                                <option value="moderate">moderate</option>
+                                <option value="severe">severe</option>
+                            </select>
+                            <div class="options-list" data-options="headacheAM">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="no" data-quality="good">no</div>
+                                <div class="option-item" data-value="mild" data-quality="neutral">mild</div>
+                                <div class="option-item" data-value="moderate" data-quality="bad">moderate</div>
+                                <div class="option-item" data-value="severe" data-quality="bad">severe</div>
+                            </div>
+                        </div>
+
+                        <!-- BM Type AM -->
+                        <div class="field-container" data-field="bmTypeAM" data-type="select">
+                            <div class="field-label">bm type [am]</div>
+                            <div class="field-value-display" data-display="bmTypeAM"></div>
+                            <select id="bmTypeAM">
+                                <option value=""></option>
+                                <option value="none">none</option>
+                                <option value="watery">watery</option>
+                                <option value="soft">soft</option>
+                                <option value="normal">normal</option>
+                                <option value="firm">firm</option>
+                                <option value="hard">hard</option>
+                                <option value="constipated">constipated</option>
+                            </select>
+                            <div class="options-list" data-options="bmTypeAM">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="none">none</div>
+                                <div class="option-item" data-value="watery" data-quality="bad">watery</div>
+                                <div class="option-item" data-value="soft" data-quality="neutral">soft</div>
+                                <div class="option-item" data-value="normal" data-quality="good">normal</div>
+                                <div class="option-item" data-value="firm" data-quality="neutral">firm</div>
+                                <div class="option-item" data-value="hard" data-quality="bad">hard</div>
+                                <div class="option-item" data-value="constipated" data-quality="bad">constipated</div>
+                            </div>
+                        </div>
+
+                        <!-- BM Type PM -->
+                        <div class="field-container" data-field="bmTypePM" data-type="select">
+                            <div class="field-label">bm type [pm]</div>
+                            <div class="field-value-display" data-display="bmTypePM"></div>
+                            <select id="bmTypePM">
+                                <option value=""></option>
+                                <option value="none">none</option>
+                                <option value="watery">watery</option>
+                                <option value="soft">soft</option>
+                                <option value="normal">normal</option>
+                                <option value="firm">firm</option>
+                                <option value="hard">hard</option>
+                                <option value="constipated">constipated</option>
+                            </select>
+                            <div class="options-list" data-options="bmTypePM">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="none">none</div>
+                                <div class="option-item" data-value="watery" data-quality="bad">watery</div>
+                                <div class="option-item" data-value="soft" data-quality="neutral">soft</div>
+                                <div class="option-item" data-value="normal" data-quality="good">normal</div>
+                                <div class="option-item" data-value="firm" data-quality="neutral">firm</div>
+                                <div class="option-item" data-value="hard" data-quality="bad">hard</div>
+                                <div class="option-item" data-value="constipated" data-quality="bad">constipated</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="category-title" style="margin-top: 12px;">symptoms [pm]</div>
+                    <div class="field-grid">
+                        <!-- Brain Fog PM -->
+                        <div class="field-container" data-field="brainFogPM" data-type="select">
+                            <div class="field-label">brain fog</div>
+                            <div class="field-value-display" data-display="brainFogPM"></div>
+                            <select id="brainFogPM">
+                                <option value=""></option>
+                                <option value="none">none</option>
+                                <option value="mild">mild</option>
+                                <option value="moderate">moderate</option>
+                                <option value="severe">severe</option>
+                            </select>
+                            <div class="options-list" data-options="brainFogPM">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="none" data-quality="good">none</div>
+                                <div class="option-item" data-value="mild" data-quality="neutral">mild</div>
+                                <div class="option-item" data-value="moderate" data-quality="bad">moderate</div>
+                                <div class="option-item" data-value="severe" data-quality="bad">severe</div>
+                            </div>
+                        </div>
+
+                        <!-- Bloating PM -->
+                        <div class="field-container" data-field="bloatingPM" data-type="select">
+                            <div class="field-label">bloating</div>
+                            <div class="field-value-display" data-display="bloatingPM"></div>
+                            <select id="bloatingPM">
+                                <option value=""></option>
+                                <option value="none">none</option>
+                                <option value="mild">mild</option>
+                                <option value="moderate">moderate</option>
+                                <option value="severe">severe</option>
+                            </select>
+                            <div class="options-list" data-options="bloatingPM">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="none" data-quality="good">none</div>
+                                <div class="option-item" data-value="mild" data-quality="neutral">mild</div>
+                                <div class="option-item" data-value="moderate" data-quality="bad">moderate</div>
+                                <div class="option-item" data-value="severe" data-quality="bad">severe</div>
+                            </div>
+                        </div>
+
+                        <!-- Fatigue PM -->
+                        <div class="field-container" data-field="fatiguePM" data-type="select">
+                            <div class="field-label">fatigue</div>
+                            <div class="field-value-display" data-display="fatiguePM"></div>
+                            <select id="fatiguePM">
+                                <option value=""></option>
+                                <option value="none">none</option>
+                                <option value="mild">mild</option>
+                                <option value="moderate">moderate</option>
+                                <option value="severe">severe</option>
+                            </select>
+                            <div class="options-list" data-options="fatiguePM">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="none" data-quality="good">none</div>
+                                <div class="option-item" data-value="mild" data-quality="neutral">mild</div>
+                                <div class="option-item" data-value="moderate" data-quality="bad">moderate</div>
+                                <div class="option-item" data-value="severe" data-quality="bad">severe</div>
+                            </div>
+                        </div>
+
+                        <!-- Sinus PM -->
+                        <div class="field-container" data-field="sinusPM" data-type="select">
+                            <div class="field-label">sinus</div>
+                            <div class="field-value-display" data-display="sinusPM"></div>
+                            <select id="sinusPM">
+                                <option value=""></option>
+                                <option value="clear">clear</option>
+                                <option value="mild">mild</option>
+                                <option value="moderate">moderate</option>
+                                <option value="severe">severe</option>
+                            </select>
+                            <div class="options-list" data-options="sinusPM">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="clear" data-quality="good">clear</div>
+                                <div class="option-item" data-value="mild" data-quality="neutral">mild</div>
+                                <div class="option-item" data-value="moderate" data-quality="bad">moderate</div>
+                                <div class="option-item" data-value="severe" data-quality="bad">severe</div>
+                            </div>
+                        </div>
+
+                        <!-- Headache PM -->
+                        <div class="field-container" data-field="headachePM" data-type="select">
+                            <div class="field-label">headache</div>
+                            <div class="field-value-display" data-display="headachePM"></div>
+                            <select id="headachePM">
+                                <option value=""></option>
+                                <option value="no">no</option>
+                                <option value="mild">mild</option>
+                                <option value="moderate">moderate</option>
+                                <option value="severe">severe</option>
+                            </select>
+                            <div class="options-list" data-options="headachePM">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="no" data-quality="good">no</div>
+                                <div class="option-item" data-value="mild" data-quality="neutral">mild</div>
+                                <div class="option-item" data-value="moderate" data-quality="bad">moderate</div>
+                                <div class="option-item" data-value="severe" data-quality="bad">severe</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nutrition -->
+                <div class="category-group">
+                    <div class="category-title">nutrition</div>
+                    <div class="field-grid">
+                        <div class="field-container" data-field="breakfast">
+                            <div class="field-label">breakfast</div>
+                            <input type="text" id="breakfast" class="field-input">
+                        </div>
+                        <div class="field-container" data-field="lunch">
+                            <div class="field-label">lunch</div>
+                            <input type="text" id="lunch" class="field-input">
+                        </div>
+                        <div class="field-container" data-field="dinner">
+                            <div class="field-label">dinner</div>
+                            <input type="text" id="dinner" class="field-input">
+                        </div>
+                        <div class="field-container" data-field="snacks">
+                            <div class="field-label">snacks</div>
+                            <input type="text" id="snacks" class="field-input">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Social -->
+                <div class="category-group">
+                    <div class="category-title">social</div>
+                    <div class="field-grid">
+                        <div class="field-container" data-field="family" data-type="select">
+                            <div class="field-label">family</div>
+                            <div class="field-value-display" data-display="family"></div>
+                            <select id="family">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="family">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                            </div>
+                        </div>
+
+                        <div class="field-container" data-field="friends" data-type="select">
+                            <div class="field-label">friends</div>
+                            <div class="field-value-display" data-display="friends"></div>
+                            <select id="friends">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="friends">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                            </div>
+                        </div>
+
+                        <div class="field-container" data-field="strangers" data-type="select">
+                            <div class="field-label">strangers</div>
+                            <div class="field-value-display" data-display="strangers"></div>
+                            <select id="strangers">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="strangers">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                            </div>
+                        </div>
+
+                        <div class="field-container" data-field="ernestHang" data-type="select">
+                            <div class="field-label">ernest hang</div>
+                            <div class="field-value-display" data-display="ernestHang"></div>
+                            <select id="ernestHang">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="ernestHang">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                            </div>
+                        </div>
+
+                        <div class="field-container" data-field="dateActivity" data-type="select">
+                            <div class="field-label">date</div>
+                            <div class="field-value-display" data-display="dateActivity"></div>
+                            <select id="dateActivity">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="dateActivity">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                            </div>
+                        </div>
+
+                        <div class="field-container" data-field="fight" data-type="select">
+                            <div class="field-label">fight</div>
+                            <div class="field-value-display" data-display="fight"></div>
+                            <select id="fight">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="fight">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="bad">yes</div>
+                                <div class="option-item" data-value="no" data-quality="good">no</div>
+                            </div>
+                        </div>
+
+                        <div class="field-container" data-field="sex" data-type="select">
+                            <div class="field-label">sex</div>
+                            <div class="field-value-display" data-display="sex"></div>
+                            <select id="sex">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="sex">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activities -->
+                <div class="category-group">
+                    <div class="category-title">activities</div>
+                    <div class="field-grid">
+                        <div class="field-container" data-field="moviesTV" data-type="select">
+                            <div class="field-label">movies & tv</div>
+                            <div class="field-value-display" data-display="moviesTV"></div>
+                            <select id="moviesTV">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="moviesTV">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="neutral">yes</div>
+                                <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                            </div>
+                        </div>
+
+                        <div class="field-container" data-field="reading" data-type="select">
+                            <div class="field-label">reading</div>
+                            <div class="field-value-display" data-display="reading"></div>
+                            <select id="reading">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="reading">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                            </div>
+                        </div>
+
+                        <div class="field-container" data-field="writing" data-type="select">
+                            <div class="field-label">writing</div>
+                            <div class="field-value-display" data-display="writing"></div>
+                            <select id="writing">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="writing">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                            </div>
+                        </div>
+
+                        <div class="field-container" data-field="crafting" data-type="select">
+                            <div class="field-label">crafting</div>
+                            <div class="field-value-display" data-display="crafting"></div>
+                            <select id="crafting">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="crafting">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                            </div>
+                        </div>
+
+                        <div class="field-container" data-field="baking" data-type="select">
+                            <div class="field-label">baking</div>
+                            <div class="field-value-display" data-display="baking"></div>
+                            <select id="baking">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="baking">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                            </div>
+                        </div>
+
+                        <div class="field-container" data-field="exercise" data-type="select">
+                            <div class="field-label">exercise</div>
+                            <div class="field-value-display" data-display="exercise"></div>
+                            <select id="exercise">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="exercise">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                            </div>
+                        </div>
+
+                        <div class="field-container" data-field="weed" data-type="select">
+                            <div class="field-label">weed</div>
+                            <div class="field-value-display" data-display="weed"></div>
+                            <select id="weed">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="weed">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="neutral">yes</div>
+                                <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                            </div>
+                        </div>
+
+                        <!-- meditation wrapper: field-container + minutes sub-field stack vertically in one grid cell -->
+                        <div style="display:flex;flex-direction:column;gap:0;">
+                            <div class="field-container" data-field="meditation" data-type="select">
+                                <div class="field-label">meditation</div>
+                                <div class="field-value-display" data-display="meditation"></div>
+                                <select id="meditation">
+                                    <option value=""></option>
+                                    <option value="yes">yes</option>
+                                    <option value="no">no</option>
+                                </select>
+                                <div class="options-list" data-options="meditation">
+                                    <div class="option-item" data-value="">—</div>
+                                    <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                    <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                                </div>
+                            </div>
+                            <div id="meditationMinsRow" style="display:none;padding:8px 12px;background:var(--pastel-green);border:1px solid #81C784;border-top:none;">
+                                <label style="font-size:0.62rem;font-weight:600;color:var(--blue);letter-spacing:0.05em;text-transform:lowercase;display:block;margin-bottom:4px;">minutes meditated</label>
+                                <input type="number" id="meditationMins" class="field-input" min="1" max="300" step="1" placeholder="0" style="width:100%;box-sizing:border-box;">
+                            </div>
+                        </div>
+
+                        <div class="field-container" data-field="cooking" data-type="select">
+                            <div class="field-label">cooking</div>
+                            <div class="field-value-display" data-display="cooking"></div>
+                            <select id="cooking">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="cooking">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                            </div>
+                        </div>
+
+                        <div class="field-container" data-field="cleaning" data-type="select">
+                            <div class="field-label">cleaning</div>
+                            <div class="field-value-display" data-display="cleaning"></div>
+                            <select id="cleaning">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="cleaning">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                            </div>
+                        </div>
+
+                        <div class="field-container" data-field="laundry" data-type="select">
+                            <div class="field-label">laundry</div>
+                            <div class="field-value-display" data-display="laundry"></div>
+                            <select id="laundry">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="laundry">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                <div class="option-item" data-value="no" data-quality="neutral">no</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interventions -->
+                <div class="category-group">
+                    <div class="category-title">interventions</div>
+                    <div class="field-grid">
+                        <!-- AM Supplements -->
+                        <div class="field-container" data-field="amSupps" data-type="select">
+                            <div class="field-label">am supplements</div>
+                            <div class="field-value-display" data-display="amSupps"></div>
+                            <select id="amSupps">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="partial">partial</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="amSupps">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                <div class="option-item" data-value="partial" data-quality="neutral">partial</div>
+                                <div class="option-item" data-value="no" data-quality="bad">no</div>
+                            </div>
+                        </div>
+
+                        <!-- PM Supplements -->
+                        <div class="field-container" data-field="pmSupps" data-type="select">
+                            <div class="field-label">pm supplements</div>
+                            <div class="field-value-display" data-display="pmSupps"></div>
+                            <select id="pmSupps">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="partial">partial</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="pmSupps">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                <div class="option-item" data-value="partial" data-quality="neutral">partial</div>
+                                <div class="option-item" data-value="no" data-quality="bad">no</div>
+                            </div>
+                        </div>
+
+                        <div class="field-container" data-field="otherMeds">
+                            <div class="field-label">other meds</div>
+                            <input type="text" id="otherMeds" class="field-input">
+                        </div>
+
+                        <!-- Atrantil -->
+                        <div class="field-container" data-field="atrantil" data-type="select">
+                            <div class="field-label">atrantil</div>
+                            <div class="field-value-display" data-display="atrantil"></div>
+                            <select id="atrantil">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="atrantil">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="good">yes</div>
+                                <div class="option-item" data-value="no" data-quality="bad">no</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cycle -->
+                <div class="category-group">
+                    <div class="category-title">cycle</div>
+                    <div class="field-grid">
+                        <div class="field-container" data-field="periodDay" data-type="select">
+                            <div class="field-label">period day</div>
+                            <div class="field-value-display" data-display="periodDay"></div>
+                            <select id="periodDay">
+                                <option value=""></option>
+                                <option value="yes">yes</option>
+                                <option value="no">no</option>
+                            </select>
+                            <div class="options-list" data-options="periodDay">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="yes" data-quality="neutral">yes</div>
+                                <div class="option-item" data-value="no" data-quality="good">no</div>
+                            </div>
+                        </div>
+
+                        <!-- Flow -->
+                        <div class="field-container" data-field="flow" data-type="select">
+                            <div class="field-label">flow</div>
+                            <div class="field-value-display" data-display="flow"></div>
+                            <select id="flow">
+                                <option value=""></option>
+                                <option value="none">none</option>
+                                <option value="light">light</option>
+                                <option value="medium">medium</option>
+                                <option value="heavy">heavy</option>
+                            </select>
+                            <div class="options-list" data-options="flow">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="none" data-quality="good">none</div>
+                                <div class="option-item" data-value="light" data-quality="good">light</div>
+                                <div class="option-item" data-value="medium" data-quality="neutral">medium</div>
+                                <div class="option-item" data-value="heavy" data-quality="bad">heavy</div>
+                            </div>
+                        </div>
+
+                        <!-- Cramps -->
+                        <div class="field-container" data-field="cramps" data-type="select">
+                            <div class="field-label">cramps</div>
+                            <div class="field-value-display" data-display="cramps"></div>
+                            <select id="cramps">
+                                <option value=""></option>
+                                <option value="none">none</option>
+                                <option value="mild">mild</option>
+                                <option value="moderate">moderate</option>
+                                <option value="severe">severe</option>
+                            </select>
+                            <div class="options-list" data-options="cramps">
+                                <div class="option-item" data-value="">—</div>
+                                <div class="option-item" data-value="none" data-quality="good">none</div>
+                                <div class="option-item" data-value="mild" data-quality="neutral">mild</div>
+                                <div class="option-item" data-value="moderate" data-quality="bad">moderate</div>
+                                <div class="option-item" data-value="severe" data-quality="bad">severe</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Supplements -->
+                <div class="category-group">
+                    <div class="category-title">supplements</div>
+                    <div class="supplement-toggle">
+                        <div class="supplement-option selected" data-status="same" onclick="toggleSupplements('same')">
+                            same as usual
+                        </div>
+                        <div class="supplement-option" data-status="changed" onclick="toggleSupplements('changed')">
+                            i've made a change
+                        </div>
+                    </div>
+                    <div class="supplement-details" id="supplementDetails">
+                        <div id="supplementList"></div>
+                        <button type="button" class="add-supplement-btn" onclick="addSupplementLine()">+ add supplement</button>
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div class="category-group">
+                    <div class="category-title">notes</div>
+                    <div style="display: grid; grid-template-columns: 1fr;">
+                        <textarea id="notes" class="field-input" placeholder="observations, context, reflections..."></textarea>
+                    </div>
+                </div>
+
+                <div class="submit-area">
+                    <button type="submit" class="btn" id="submitBtn">save entry</button>
+                    <button type="button" class="btn btn-secondary" onclick="resetForm()">clear</button>
+                    <button type="button" class="btn-text" id="entrySyncBtn" onclick="entrySyncOura()" style="display:none;margin-left:8px;font-size:0.7rem;">↻ sync oura</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- History -->
+        <div id="history" class="tab-content active">
+            <div class="section-title">archive</div>
+            <div id="entryList" class="entry-list"></div>
+        </div>
+
+        <!-- Insights -->
+        <div id="insights" class="tab-content">
+
+            <!-- Oura Ring connection -->
+            <div class="oura-section">
+                <div class="oura-header" onclick="toggleOuraPanel()">
+                    <div class="section-title">oura ring</div>
+                    <span class="oura-badge disconnected" id="ouraBadge">not connected</span>
+                    <span id="ouraToggleArrow" style="font-size:0.75rem;color:var(--gray-text)">↑</span>
+                </div>
+                <div class="oura-body" id="ouraPanel">
+                    <div id="ouraConnectForm">
+                        <p class="oura-hint">get your personal access token at <a href="https://cloud.ouraring.com/personal-access-tokens" target="_blank">cloud.ouraring.com/personal-access-tokens</a> — data syncs the last 30 days automatically.</p>
+                        <div class="oura-token-row" style="margin-top:12px">
+                            <input type="password" class="oura-token-input" id="ouraTokenInput" placeholder="paste personal access token…">
+                            <button class="btn-primary" onclick="ouraConnect()">connect</button>
+                        </div>
+                        <div class="oura-error" id="ouraError"></div>
+                    </div>
+                    <div id="ouraConnectedView" style="display:none">
+                        <div class="stats-grid" id="ouraStatsGrid"></div>
+                        <div class="oura-meta">
+                            <span id="ouraLastSynced"></span>
+                            <button class="btn-text" onclick="ouraSync()">sync now</button>
+                            <button class="btn-text" onclick="ouraDisconnect()" style="color:#E57373">disconnect</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 7-day summary stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">avg mood [am]</div>
+                    <div class="stat-value" id="avgMoodAM">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">avg mood [pm]</div>
+                    <div class="stat-value" id="avgMoodPM">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">avg sleep</div>
+                    <div class="stat-value" id="avgSleep">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">avg steps</div>
+                    <div class="stat-value" id="avgSteps">0</div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">symptom intensity — 30 days</div>
+                <canvas id="symptomIntensityChart" height="70"></canvas>
+            </div>
+
+            <div class="section-title">insights</div>
+            <div id="insightsContent" class="insight-grid"></div>
+        </div>
+    </div>
+
+        <!-- Supplements GANTT -->
+        <div id="supplements" class="tab-content">
+            <div class="section-title">supplement history</div>
+            <div id="ganttContainer">
+                <div id="ganttNoData" style="color:var(--gray-text);padding:20px 0;">no supplement change history yet — log an entry with supplement changes to see the timeline.</div>
+                <div id="ganttChart" class="gantt-outer"></div>
+            </div>
+        </div>
+
+    <!-- Login overlay -->
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-card">
+            <h1>health tracker</h1>
+            <span class="subtitle">sign in to sync across all your devices</span>
+            <button class="btn-google" onclick="signInWithGoogle()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                sign in with google
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let healthData = [];
+        let charts = {};
+        let editingIndex = null;
+        let supplementStatus = 'same';
+        let unsubscribeListener = null;
+
+        // ─── Firebase Configuration ───────────────────────────────────────────
+        // REPLACE these placeholder values with your Firebase project config
+        // (see the setup guide: SETUP-GUIDE.md)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDvGdEsAnr-sMQJTEYQ2Wp8TazoaTNv9os",
+            authDomain: "clare-s-health-tracker.firebaseapp.com",
+            projectId: "clare-s-health-tracker",
+            storageBucket: "clare-s-health-tracker.firebasestorage.app",
+            messagingSenderId: "339318453652",
+            appId: "1:339318453652:web:0523a67f06d4bed5960b81"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Enable offline persistence so the app works without internet
+        db.enablePersistence({ synchronizeTabs: true })
+            .catch(err => {
+                if (err.code === 'failed-precondition') {
+                    console.warn('Offline persistence unavailable: multiple tabs');
+                } else if (err.code === 'unimplemented') {
+                    console.warn('Offline persistence not supported in this browser');
+                }
+            });
+        // ─────────────────────────────────────────────────────────────────────
+
+        // Initial supplement regimen from CSV
+        const initialSupplements = [
+            {name: 'Fish Oil', amount: '1250 mg', timing: 'AM', note: ''},
+            {name: 'TMG', amount: '1000 mg', timing: 'AM', note: ''},
+            {name: 'Methylfolate', amount: '1000 mcg', timing: 'AM', note: ''},
+            {name: 'B12 (Cyanocobalamin)', amount: '500 mcg', timing: 'AM', note: ''},
+            {name: 'Vitamin B6', amount: '25 mg', timing: 'AM', note: ''},
+            {name: 'Alpha Lipoic Acid', amount: '250 mg', timing: 'AM', note: ''},
+            {name: 'Vitamin D3', amount: '62.5 mg', timing: 'AM', note: ''},
+            {name: 'Magnesium Citrate', amount: '133 mg', timing: 'PM', note: ''},
+            {name: 'Magnesium Glycinate', amount: '100 mg', timing: 'PM', note: ''},
+            {name: 'Zinc Carnosine', amount: '86 mg', timing: 'PM', note: ''},
+            {name: 'Atrantil', amount: 'As needed', timing: 'PM', note: ''}
+        ];
+
+
+        function updateEntryDateDow() {
+            const val = document.getElementById('entryDate').value;
+            const el = document.getElementById('entryDateDow');
+            if (val && el) {
+                const [year, month, day] = val.split('-').map(Number);
+                const d = new Date(year, month - 1, day);
+                el.textContent = d.toLocaleDateString('en-US', {weekday: 'long'});
+            } else if (el) {
+                el.textContent = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load any locally cached data immediately for fast startup
+            loadData();
+            document.getElementById('entryDate').valueAsDate = new Date();
+            updateEntryDateDow();
+            document.getElementById('entryDate').addEventListener('change', function() {
+                updateEntryDateDow();
+                fillFromOura(this.value);   // auto-fill Oura fields for the selected date
+            });
+            initInteractiveFields();
+            initSupplements();
+            setupWeeklyExport();
+            initOura();
+            // Fill today's Oura data into the new-entry form on load
+            fillFromOura(document.getElementById('entryDate').value);
+
+            // Set up Firebase auth state listener
+            firebase.auth().onAuthStateChanged(user => {
+                if (user) {
+                    // Signed in — hide login overlay, show app
+                    document.getElementById('loginOverlay').style.display = 'none';
+                    document.getElementById('userEmail').textContent = user.email;
+                    // Check if there's local data that hasn't been uploaded yet
+                    const localData = localStorage.getItem('healthTrackerData');
+                    if (localData) {
+                        try {
+                            const parsed = JSON.parse(localData);
+                            if (parsed && parsed.length > 0) {
+                                document.getElementById('migrateBtn').style.display = 'inline-flex';
+                            }
+                        } catch(e) {}
+                    }
+                    // Connect to Firestore real-time listener
+                    setupRealtimeListener(user.uid);
+                } else {
+                    // Not signed in — show login overlay
+                    if (unsubscribeListener) { unsubscribeListener(); unsubscribeListener = null; }
+                    document.getElementById('loginOverlay').style.display = 'flex';
+                    document.getElementById('userEmail').textContent = '';
+                }
+            });
+        });
+
+        function initInteractiveFields() {
+            // Handle option item clicks
+            document.querySelectorAll('.option-item').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const optionsList = this.closest('.options-list');
+                    const fieldName = optionsList.getAttribute('data-options');
+                    const value = this.getAttribute('data-value');
+                    const quality = this.getAttribute('data-quality');
+                    const container = this.closest('.field-container');
+                    const display = container.querySelector('.field-value-display');
+                    const select = document.getElementById(fieldName);
+
+                    console.log(`Clicked option: field=${fieldName}, value="${value}"`);
+
+                    // Update select value
+                    select.value = value;
+                    console.log(`Select element value after setting: "${select.value}"`);
+
+                    // Update display
+                    display.textContent = value;
+
+                    // Remove all selected classes from siblings
+                    optionsList.querySelectorAll('.option-item').forEach(opt => {
+                        opt.classList.remove('selected');
+                    });
+
+                    // Add selected class to clicked item
+                    this.classList.add('selected');
+
+                    // Update container color based on quality
+                    container.classList.remove('selected-good', 'selected-bad', 'selected-neutral');
+                    if (quality === 'good') {
+                        container.classList.add('selected-good');
+                    } else if (quality === 'bad') {
+                        container.classList.add('selected-bad');
+                    } else if (quality === 'neutral') {
+                        container.classList.add('selected-neutral');
+                    }
+
+                    // Show/hide meditation minutes sub-field (lives outside the field-container)
+                    if (fieldName === 'meditation') {
+                        const minsRow = document.getElementById('meditationMinsRow');
+                        if (minsRow) {
+                            minsRow.style.display = value === 'yes' ? 'block' : 'none';
+                            if (value !== 'yes') document.getElementById('meditationMins').value = '';
+                        }
+                    }
+                });
+            });
+
+            // ── Mobile touch support for field container expand/collapse ──────────
+            // Use ontouchstart / maxTouchPoints — reliable on iOS Safari and Android.
+            // @media (hover: none) is NOT used because iOS Safari can report hover
+            // support even on touch-only devices, causing the media query to miss.
+            const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            if (isTouchDevice) {
+                document.body.classList.add('touch-device');
+
+                // Single delegated listener covers all containers — including any
+                // added dynamically after page load (e.g. supplement rows).
+                document.addEventListener('click', function(e) {
+                    const container = e.target.closest('.field-container');
+
+                    // Tap outside every field → close all open dropdowns
+                    if (!container) {
+                        document.querySelectorAll('.field-container.touch-active')
+                            .forEach(c => c.classList.remove('touch-active'));
+                        return;
+                    }
+
+                    // Tap on an option item → option handler already fired (it's
+                    // earlier in the bubble), so just close this container
+                    if (e.target.closest('.option-item')) {
+                        container.classList.remove('touch-active');
+                        return;
+                    }
+
+                    // Tap on a real text/number/date/time input → let the browser
+                    // focus it and show the keyboard; don't open the dropdown
+                    const tag  = e.target.tagName;
+                    const type = (e.target.type || '').toLowerCase();
+                    if (tag === 'INPUT' && type !== 'hidden') return;
+                    if (tag === 'TEXTAREA') return;
+
+                    // Toggle this container; close any other open one first
+                    const isActive = container.classList.contains('touch-active');
+                    document.querySelectorAll('.field-container.touch-active')
+                        .forEach(c => c.classList.remove('touch-active'));
+                    if (!isActive) container.classList.add('touch-active');
+                });
+            }
+            // ─────────────────────────────────────────────────────────────────────
+
+            // Handle numeric inputs for color coding
+            ['water', 'sleepHours'].forEach(fieldName => {
+                const input = document.getElementById(fieldName);
+                if (input) {
+                    input.addEventListener('input', function() {
+                        const container = this.closest('.field-container');
+                        const value = parseFloat(this.value) || 0;
+                        container.classList.remove('selected-good', 'selected-bad', 'selected-neutral');
+                        if (fieldName === 'water') {
+                            if (value >= 64) container.classList.add('selected-good');
+                            else if (value >= 40) container.classList.add('selected-neutral');
+                            else if (value > 0) container.classList.add('selected-bad');
+                        } else if (fieldName === 'sleepHours') {
+                            if (value >= 7 && value <= 9) container.classList.add('selected-good');
+                            else if (value >= 6 || value <= 10) container.classList.add('selected-neutral');
+                            else if (value > 0) container.classList.add('selected-bad');
+                        }
+                    });
+                }
+            });
+
+            // Steps AM + PM — color both containers based on combined total
+            function applyStepsColor() {
+                const total = (parseInt(document.getElementById('stepsAM')?.value) || 0)
+                            + (parseInt(document.getElementById('stepsPM')?.value) || 0);
+                ['stepsAM', 'stepsPM'].forEach(fn => {
+                    const c = document.getElementById(fn)?.closest('.field-container');
+                    if (!c) return;
+                    c.classList.remove('selected-good', 'selected-bad', 'selected-neutral');
+                    if (total >= 7000) c.classList.add('selected-good');
+                    else if (total >= 5000) c.classList.add('selected-neutral');
+                    else if (total > 0) c.classList.add('selected-bad');
+                });
+            }
+            ['stepsAM', 'stepsPM'].forEach(fn => {
+                document.getElementById(fn)?.addEventListener('input', applyStepsColor);
+            });
+
+            // Readiness color coding (0-100 Oura score)
+            document.getElementById('readiness')?.addEventListener('input', function() {
+                const container = this.closest('.field-container');
+                const value = parseFloat(this.value) || 0;
+                container.classList.remove('selected-good', 'selected-bad', 'selected-neutral');
+                if (value >= 85) container.classList.add('selected-good');
+                else if (value >= 70) container.classList.add('selected-neutral');
+                else if (value > 0) container.classList.add('selected-bad');
+            });
+        }
+
+        // Returns the correct supplement list for a new entry.
+        // Scans entries by date (most recent first) for the last day where
+        // the user logged "i've made a change", and uses that as the current regimen.
+        // beforeDate: optional YYYY-MM-DD string — only look at entries strictly before this date
+        // (so editing a past entry doesn't pull in supplements added after that date)
+        function getCurrentSupplements(beforeDate) {
+            if (healthData.length > 0) {
+                const sorted = [...healthData]
+                    .sort((a, b) => new Date(b.date) - new Date(a.date));
+                const candidates = beforeDate
+                    ? sorted.filter(e => e.date < beforeDate)
+                    : sorted;
+                const lastChanged = candidates.find(
+                    e => e.supplementStatus === 'changed' && e.supplements && e.supplements.length > 0
+                );
+                if (lastChanged) return lastChanged.supplements;
+            }
+            // Legacy fallback — localStorage key from previous version
+            const saved = localStorage.getItem('defaultSupplements');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    if (parsed && parsed.length > 0) return parsed;
+                } catch(e) {}
+            }
+            return [...initialSupplements];
+        }
+
+        function timingOrder(t) {
+            if (!t || t.toUpperCase() === 'AM') return 0;
+            if (t.toUpperCase() === 'PM') return 1;
+            return 2; // as needed / other
+        }
+
+        function initSupplements(supplementList) {
+            const list = document.getElementById('supplementList');
+            list.innerHTML = '';
+            const supps = supplementList || getCurrentSupplements();
+            // AM on top, PM below, as-needed last
+            const sorted = [...supps].sort((a, b) => timingOrder(a.timing) - timingOrder(b.timing));
+            sorted.forEach(supp => addSupplementLine(supp));
+        }
+
+        function toggleSupplements(status) {
+            supplementStatus = status;
+            const options = document.querySelectorAll('.supplement-option');
+            options.forEach(opt => {
+                opt.classList.remove('selected');
+                if (opt.getAttribute('data-status') === status) {
+                    opt.classList.add('selected');
+                }
+            });
+
+            const details = document.getElementById('supplementDetails');
+            if (status === 'changed') {
+                details.classList.add('active');
+            } else {
+                details.classList.remove('active');
+            }
+        }
+
+        function addSupplementLine(supplement = {name: '', amount: '', timing: 'AM', note: ''}) {
+            const list = document.getElementById('supplementList');
+            const line = document.createElement('div');
+            line.className = 'supplement-line';
+
+            line.innerHTML = `
+                <input type="text" placeholder="supplement name" value="${supplement.name}" class="supp-name">
+                <input type="text" placeholder="amount" value="${supplement.amount}" class="supp-amount">
+                <select class="supp-timing">
+                    <option value="AM" ${supplement.timing === 'AM' ? 'selected' : ''}>AM</option>
+                    <option value="PM" ${supplement.timing === 'PM' ? 'selected' : ''}>PM</option>
+                </select>
+                <input type="text" placeholder="note" value="${supplement.note}" class="supp-note">
+                <button type="button" class="btn-text" onclick="removeSupplementLine(this)">×</button>
+            `;
+
+            list.appendChild(line);
+        }
+
+        function removeSupplementLine(btn) {
+            btn.closest('.supplement-line').remove();
+        }
+
+        function getSupplementData() {
+            const lines = document.querySelectorAll('.supplement-line');
+            const supplements = [];
+            lines.forEach(line => {
+                const name = line.querySelector('.supp-name').value;
+                const amount = line.querySelector('.supp-amount').value;
+                const timing = line.querySelector('.supp-timing').value;
+                const note = line.querySelector('.supp-note').value;
+                if (name || amount) {  // Only save if there's at least a name or amount
+                    supplements.push({name, amount, timing, note});
+                }
+            });
+            return supplements;
+        }
+
+        function loadData() {
+            // Load from localStorage for immediate display while Firebase connects
+            const saved = localStorage.getItem('healthTrackerData');
+            if (saved) {
+                try { healthData = JSON.parse(saved); } catch(e) { healthData = []; }
+            }
+        }
+
+        function saveData() {
+            // Keep localStorage as fast local cache / offline backup
+            localStorage.setItem('healthTrackerData', JSON.stringify(healthData));
+        }
+
+        // ─── Firebase Auth & Sync ────────────────────────────────────────────────
+
+        function signInWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            firebase.auth().signInWithPopup(provider)
+                .catch(error => {
+                    console.error('Sign-in error:', error);
+                    alert('Sign-in failed: ' + error.message);
+                });
+        }
+
+        function handleSignOut() {
+            if (unsubscribeListener) {
+                unsubscribeListener();
+                unsubscribeListener = null;
+            }
+            firebase.auth().signOut().then(() => {
+                healthData = [];
+                document.getElementById('loginOverlay').style.display = 'flex';
+                document.getElementById('userEmail').textContent = '';
+            }).catch(err => console.error('Sign-out error:', err));
+        }
+
+        function setupRealtimeListener(userId) {
+            if (unsubscribeListener) unsubscribeListener();
+            const entriesRef = db.collection('users').doc(userId).collection('entries');
+            unsubscribeListener = entriesRef.onSnapshot(snapshot => {
+                healthData = snapshot.docs.map(doc => doc.data());
+                healthData.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+                saveData(); // keep localStorage in sync
+                // Refresh whichever tab is active
+                const active = document.querySelector('.tab-content.active');
+                if (active) {
+                    if (active.id === 'history') updateHistory();
+                    if (active.id === 'insights') updateInsights();
+                    if (active.id === 'supplements') updateSupplementGantt();
+                }
+            }, err => console.error('Firestore listener error:', err));
+        }
+
+        function firestoreSaveEntry(entry) {
+            const user = firebase.auth().currentUser;
+            if (!user) return;
+            db.collection('users').doc(user.uid).collection('entries')
+                .doc(entry.date).set(entry)
+                .catch(err => console.error('Firestore save error:', err));
+        }
+
+        function firestoreDeleteEntry(dateId) {
+            const user = firebase.auth().currentUser;
+            if (!user) return;
+            db.collection('users').doc(user.uid).collection('entries')
+                .doc(dateId).delete()
+                .catch(err => console.error('Firestore delete error:', err));
+        }
+
+        function firestoreSyncAll() {
+            const user = firebase.auth().currentUser;
+            if (!user || healthData.length === 0) return;
+            const batch = db.batch();
+            healthData.forEach(entry => {
+                const ref = db.collection('users').doc(user.uid).collection('entries').doc(entry.date);
+                batch.set(ref, entry);
+            });
+            batch.commit()
+                .then(() => showSuccess(`synced ${healthData.length} entries to cloud`))
+                .catch(err => console.error('Batch sync error:', err));
+        }
+
+        // Import any data that exists in localStorage into Firestore (one-time migration)
+        function migrateLocalData() {
+            const saved = localStorage.getItem('healthTrackerData');
+            if (!saved) { alert('No local data found.'); return; }
+            try {
+                const localData = JSON.parse(saved);
+                if (!localData || localData.length === 0) { alert('No local data found.'); return; }
+                if (!confirm(`Found ${localData.length} entries saved locally. Import them to your cloud account?`)) return;
+                const user = firebase.auth().currentUser;
+                if (!user) { alert('Please sign in first.'); return; }
+                const batch = db.batch();
+                localData.forEach(entry => {
+                    const ref = db.collection('users').doc(user.uid).collection('entries').doc(entry.date);
+                    batch.set(ref, entry, { merge: true });
+                });
+                batch.commit()
+                    .then(() => {
+                        showSuccess(`imported ${localData.length} entries`);
+                        document.getElementById('migrateBtn').style.display = 'none';
+                    })
+                    .catch(err => { console.error('Migration error:', err); alert('Error: ' + err.message); });
+            } catch(e) { alert('Could not read local data.'); }
+        }
+        // ─────────────────────────────────────────────────────────────────────────
+
+
+        function saveEntry(event) {
+            event.preventDefault();
+
+
+            const entry = {
+                date: document.getElementById('entryDate').value,
+                wakeTime: document.getElementById('wakeTime').value,
+                firstMealTime: document.getElementById('firstMealTime').value,
+                water: parseFloat(document.getElementById('water').value) || 0,
+                sleepHours: parseFloat(document.getElementById('sleepHours').value) || 0,
+                sleepQuality: document.getElementById('sleepQuality').value,
+                stepsAM: parseInt(document.getElementById('stepsAM').value) || 0,
+                stepsPM: parseInt(document.getElementById('stepsPM').value) || 0,
+                readiness: parseFloat(document.getElementById('readiness').value) || null,
+                moodAM: document.getElementById('moodAM').value,
+                moodPM: document.getElementById('moodPM').value,
+                anxietyAM: document.getElementById('anxietyAM').value,
+                anxietyPM: document.getElementById('anxietyPM').value,
+                screentime: document.getElementById('screentime').value,
+                brainFogAM: document.getElementById('brainFogAM').value,
+                brainFogPM: document.getElementById('brainFogPM').value,
+                bloatingAM: document.getElementById('bloatingAM').value,
+                bloatingPM: document.getElementById('bloatingPM').value,
+                fatigueAM: document.getElementById('fatigueAM').value,
+                fatiguePM: document.getElementById('fatiguePM').value,
+                sinusAM: document.getElementById('sinusAM').value,
+                sinusPM: document.getElementById('sinusPM').value,
+                bmTypeAM: document.getElementById('bmTypeAM').value,
+                bmTypePM: document.getElementById('bmTypePM').value,
+                headacheAM: document.getElementById('headacheAM').value,
+                headachePM: document.getElementById('headachePM').value,
+                breakfast: document.getElementById('breakfast').value,
+                lunch: document.getElementById('lunch').value,
+                dinner: document.getElementById('dinner').value,
+                snacks: document.getElementById('snacks').value,
+                family: document.getElementById('family').value,
+                friends: document.getElementById('friends').value,
+                strangers: document.getElementById('strangers').value,
+                ernestHang: document.getElementById('ernestHang').value,
+                dateActivity: document.getElementById('dateActivity').value,
+                fight: document.getElementById('fight').value,
+                sex: document.getElementById('sex').value,
+                moviesTV: document.getElementById('moviesTV').value,
+                reading: document.getElementById('reading').value,
+                writing: document.getElementById('writing').value,
+                crafting: document.getElementById('crafting').value,
+                baking: document.getElementById('baking').value,
+                exercise: document.getElementById('exercise').value,
+                weed: document.getElementById('weed').value,
+                meditation: document.getElementById('meditation').value,
+                meditationMins: document.getElementById('meditation').value === 'yes'
+                    ? (parseInt(document.getElementById('meditationMins').value) || null)
+                    : null,
+                cooking: document.getElementById('cooking').value,
+                cleaning: document.getElementById('cleaning').value,
+                laundry: document.getElementById('laundry').value,
+                amSupps: document.getElementById('amSupps').value,
+                pmSupps: document.getElementById('pmSupps').value,
+                atrantil: document.getElementById('atrantil').value,
+                otherMeds: document.getElementById('otherMeds').value,
+                periodDay: document.getElementById('periodDay').value,
+                flow: document.getElementById('flow').value,
+                cramps: document.getElementById('cramps').value,
+                notes: document.getElementById('notes').value,
+                supplementStatus: supplementStatus,
+                supplements: supplementStatus === 'changed' ? getSupplementData() : [],
+                timestamp: new Date().toISOString()
+            };
+
+            console.log('Saving entry:', entry);
+
+            if (editingIndex !== null) {
+                healthData[editingIndex] = entry;
+                editingIndex = null;
+                document.getElementById('editModeBanner').classList.remove('show');
+                document.getElementById('submitBtn').textContent = 'save entry';
+                showSuccess('entry updated');
+            } else {
+                const existingIndex = healthData.findIndex(e => e.date === entry.date);
+                if (existingIndex >= 0) {
+                    if (confirm('entry exists for this date. replace?')) {
+                        healthData[existingIndex] = entry;
+                    } else {
+                        return;
+                    }
+                } else {
+                    healthData.push(entry);
+                }
+                showSuccess('entry saved');
+            }
+
+            healthData.sort((a, b) => new Date(b.date) - new Date(a.date));
+            saveData();
+            firestoreSaveEntry(entry); // sync to cloud
+            resetForm();
+            updateInsights();
+
+            // Switch to history tab to show the saved entry
+            setTimeout(() => {
+                switchTab('history');
+            }, 100);
+        }
+
+        function resetForm() {
+            document.getElementById('healthForm').reset();
+            document.getElementById('entryDate').valueAsDate = new Date();
+
+            // Reset all selections
+            document.querySelectorAll('.option-item').forEach(item => item.classList.remove('selected'));
+            document.querySelectorAll('.field-value-display').forEach(display => display.textContent = '');
+            document.querySelectorAll('.field-container').forEach(container => {
+                container.classList.remove('selected-good', 'selected-bad', 'selected-neutral');
+            });
+
+            // Reset meditation minutes sub-field
+            const minsRowReset = document.getElementById('meditationMinsRow');
+            if (minsRowReset) { minsRowReset.style.display = 'none'; }
+            const minsInputReset = document.getElementById('meditationMins');
+            if (minsInputReset) { minsInputReset.value = ''; }
+
+            // Reset supplements
+            toggleSupplements('same');
+            initSupplements();
+
+            editingIndex = null;
+            document.getElementById('editModeBanner').classList.remove('show');
+            document.getElementById('submitBtn').textContent = 'save entry';
+            // Re-fill Oura fields for today after clearing
+            fillFromOura(document.getElementById('entryDate').value);
+        }
+
+        function cancelEdit() {
+            resetForm();
+        }
+
+        function editEntry(index) {
+            editingIndex = index;
+            const entry = healthData[index];
+
+            // Set basic inputs
+            document.getElementById('entryDate').value = entry.date;
+            updateEntryDateDow();  // refresh day-of-week label to match the entry's date
+            document.getElementById('wakeTime').value = entry.wakeTime || '';
+            document.getElementById('firstMealTime').value = entry.firstMealTime || '';
+            document.getElementById('water').value = entry.water || '';
+            document.getElementById('sleepHours').value = entry.sleepHours || '';
+            // Back-compat: old entries have a single 'steps'; migrate to stepsAM
+            document.getElementById('stepsAM').value = (entry.stepsAM != null ? entry.stepsAM : (entry.steps || '')) || '';
+            document.getElementById('stepsPM').value = entry.stepsPM != null ? entry.stepsPM : '';
+            document.getElementById('readiness').value = entry.readiness != null ? entry.readiness : '';
+            document.getElementById('breakfast').value = entry.breakfast || '';
+            document.getElementById('lunch').value = entry.lunch || '';
+            document.getElementById('dinner').value = entry.dinner || '';
+            document.getElementById('snacks').value = entry.snacks || '';
+            document.getElementById('otherMeds').value = entry.otherMeds || '';
+            document.getElementById('notes').value = entry.notes || '';
+
+            // Set select values and update displays
+            // Back-compat: old entries stored a single 'bmType'; migrate it to bmTypeAM
+            if (entry.bmType && !entry.bmTypeAM) entry.bmTypeAM = entry.bmType;
+
+            const fields = ['sleepQuality', 'moodAM', 'moodPM', 'anxietyAM', 'anxietyPM', 'screentime', 'brainFogAM', 'brainFogPM', 'bloatingAM', 'bloatingPM', 'fatigueAM', 'fatiguePM', 'sinusAM', 'sinusPM', 'bmTypeAM', 'bmTypePM', 'headacheAM', 'headachePM', 'family', 'friends', 'strangers', 'ernestHang', 'dateActivity', 'fight', 'sex', 'moviesTV', 'reading', 'writing', 'crafting', 'baking', 'exercise', 'weed', 'meditation', 'cooking', 'cleaning', 'laundry', 'amSupps', 'pmSupps', 'atrantil', 'periodDay', 'flow', 'cramps'];
+            fields.forEach(field => {
+                const value = entry[field] ? entry[field].toLowerCase() : '';
+                const select = document.getElementById(field);
+                const display = document.querySelector(`[data-display="${field}"]`);
+                const container = document.querySelector(`[data-field="${field}"][data-type="select"]`);
+
+                if (select && display && container) {
+                    select.value = value;
+                    display.textContent = value;
+
+                    // Find and select the matching option
+                    const optionsList = container.querySelector('.options-list');
+                    if (optionsList) {
+                        optionsList.querySelectorAll('.option-item').forEach(item => {
+                            const itemValue = item.getAttribute('data-value');
+                            const quality = item.getAttribute('data-quality');
+
+                            if (itemValue === value) {
+                                item.classList.add('selected');
+
+                                // Apply quality color
+                                container.classList.remove('selected-good', 'selected-bad', 'selected-neutral');
+                                if (quality === 'good') container.classList.add('selected-good');
+                                else if (quality === 'bad') container.classList.add('selected-bad');
+                                else if (quality === 'neutral') container.classList.add('selected-neutral');
+                            } else {
+                                item.classList.remove('selected');
+                            }
+                        });
+                    }
+                }
+            });
+
+            // Show/populate meditation minutes sub-field if needed
+            const meditationMinsRow = document.getElementById('meditationMinsRow');
+            const meditationMinsInput = document.getElementById('meditationMins');
+            if (meditationMinsRow && meditationMinsInput) {
+                if (entry.meditation === 'yes') {
+                    meditationMinsRow.style.display = 'block';
+                    meditationMinsInput.value = entry.meditationMins || '';
+                } else {
+                    meditationMinsRow.style.display = 'none';
+                    meditationMinsInput.value = '';
+                }
+            }
+
+            // Trigger input events for numeric fields to apply color coding
+            ['water', 'sleepHours', 'stepsAM', 'stepsPM', 'readiness'].forEach(field => {
+                const input = document.getElementById(field);
+                if (input) {
+                    input.dispatchEvent(new Event('input'));
+                }
+            });
+
+            // Restore supplement data
+            const suppStatus = entry.supplementStatus || 'same';
+            toggleSupplements(suppStatus);
+            if (suppStatus === 'changed' && entry.supplements && entry.supplements.length > 0) {
+                // Show the exact supplements logged for this entry
+                initSupplements(entry.supplements);
+            } else {
+                // Show what the regimen looked like at this date (entries strictly before this date)
+                initSupplements(getCurrentSupplements(entry.date));
+            }
+
+            document.getElementById('editModeBanner').classList.add('show');
+            document.getElementById('submitBtn').textContent = 'update';
+
+            switchTab('entry');
+            window.scrollTo(0, 0);
+        }
+
+        function showSuccess(message) {
+            const msg = document.getElementById('successMessage');
+            msg.textContent = message;
+            msg.classList.add('show');
+            setTimeout(() => msg.classList.remove('show'), 3000);
+        }
+
+        function switchTab(tabName) {
+            const buttons = document.querySelectorAll('nav button');
+            const tabMap = ['entry', 'history', 'insights', 'supplements'];
+            const index = tabMap.indexOf(tabName);
+
+            buttons.forEach(b => b.classList.remove('active'));
+            if (index >= 0) buttons[index].classList.add('active');
+
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+
+            if (tabName === 'insights') { updateInsights(); initOura(); }
+            if (tabName === 'history') updateHistory();
+            if (tabName === 'supplements') updateSupplementGantt();
+        }
+
+        // Build a timeline of supplement periods from healthData.
+        // Returns: { supplementName: [{start, end, timing, amount}] }
+        function buildSupplementTimeline() {
+            if (!healthData || healthData.length === 0) return {};
+
+            // Sort entries chronologically
+            const sorted = [...healthData].sort((a, b) => {
+                const [ay, am, ad] = a.date.split('-').map(Number);
+                const [by, bm, bd] = b.date.split('-').map(Number);
+                return new Date(ay, am-1, ad) - new Date(by, bm-1, bd);
+            });
+
+            // Collect all "changed" snapshots — each one replaces the previous
+            const snapshots = []; // [{date, supplements}]
+            sorted.forEach(entry => {
+                if (entry.supplementStatus === 'changed' && entry.supplements && entry.supplements.length > 0) {
+                    snapshots.push({ date: entry.date, supplements: entry.supplements });
+                }
+            });
+
+            if (snapshots.length === 0) return {};
+
+            // Figure out date range: first snapshot date → today
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const timeline = {}; // supplementName -> [{start, end, timing, amount}]
+
+            // Helper to parse date string as local date
+            const parseDate = (str) => {
+                const [y, m, d] = str.split('-').map(Number);
+                return new Date(y, m-1, d);
+            };
+
+            // Walk snapshots pairwise: each snapshot is active from its date until the next snapshot date
+            snapshots.forEach((snap, i) => {
+                const periodStart = parseDate(snap.date);
+                const periodEnd = i < snapshots.length - 1
+                    ? parseDate(snapshots[i + 1].date)
+                    : today;
+
+                snap.supplements.forEach(supp => {
+                    const key = supp.name;
+                    if (!timeline[key]) timeline[key] = [];
+
+                    // Merge with previous period if same timing/amount and contiguous
+                    const prev = timeline[key][timeline[key].length - 1];
+                    if (prev && prev.timing === supp.timing && prev.amount === supp.amount && prev.end >= periodStart) {
+                        prev.end = periodEnd;
+                    } else {
+                        timeline[key].push({ start: periodStart, end: periodEnd, timing: supp.timing || 'AM', amount: supp.amount || '' });
+                    }
+                });
+            });
+
+            return timeline;
+        }
+
+        function updateSupplementGantt() {
+            const timeline = buildSupplementTimeline();
+            const ganttNoData = document.getElementById('ganttNoData');
+            const ganttChart = document.getElementById('ganttChart');
+
+            // Sort: AM supplements first, PM below, as-needed last
+            const supplementNames = Object.keys(timeline).sort((a, b) => {
+                const aLatest = timeline[a][timeline[a].length - 1].timing || 'AM';
+                const bLatest = timeline[b][timeline[b].length - 1].timing || 'AM';
+                return timingOrder(aLatest) - timingOrder(bLatest);
+            });
+
+            if (supplementNames.length === 0) {
+                ganttNoData.style.display = 'block';
+                ganttChart.innerHTML = '';
+                return;
+            }
+
+            ganttNoData.style.display = 'none';
+
+            // Determine overall date range
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            let minDate = today;
+            let maxDate = today;
+            supplementNames.forEach(name => {
+                timeline[name].forEach(period => {
+                    if (period.start < minDate) minDate = period.start;
+                    if (period.end > maxDate) maxDate = period.end;
+                });
+            });
+
+            const totalDays = Math.max((maxDate - minDate) / 86400000, 1);
+
+            // Compute position/width % for a period
+            const pct = (date) => ((date - minDate) / 86400000 / totalDays * 100).toFixed(2);
+            const widthPct = (start, end) => {
+                const w = ((end - start) / 86400000 / totalDays * 100);
+                return Math.max(w, 0.5).toFixed(2);
+            };
+
+            // Parse numeric value from amount string (e.g. "1250 mg" → 1250, "500 mcg" → 500)
+            const parseAmount = (str) => {
+                if (!str) return 0;
+                const m = str.match(/[\d.]+/);
+                return m ? parseFloat(m[0]) : 0;
+            };
+
+            // Collect all dose values to establish scale (max = tallest bar)
+            const allValues = [];
+            supplementNames.forEach(name => {
+                timeline[name].forEach(period => {
+                    const v = parseAmount(period.amount);
+                    if (v > 0) allValues.push(v);
+                });
+            });
+            const maxVal = allValues.length > 0 ? Math.max(...allValues) : 1;
+            const TRACK_H = 36; // px — row track height
+            const MIN_BAR_H = 6;
+            const MAX_BAR_H = 26;
+
+            const barHeight = (amountStr) => {
+                const v = parseAmount(amountStr);
+                if (v <= 0) return MIN_BAR_H; // "as needed" / no value
+                return Math.round(MIN_BAR_H + (v / maxVal) * (MAX_BAR_H - MIN_BAR_H));
+            };
+
+            // Build date tick marks (~4-6 ticks)
+            const tickCount = 5;
+            const tickInterval = totalDays / tickCount;
+            let ticksHtml = '';
+            for (let i = 0; i <= tickCount; i++) {
+                const tickDate = new Date(minDate.getTime() + i * tickInterval * 86400000);
+                const pos = (i / tickCount * 100).toFixed(1);
+                const label = tickDate.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+                ticksHtml += `<div class="gantt-date-tick" style="left:${pos}%">${label}</div>`;
+            }
+
+            // Build rows
+            let rowsHtml = '';
+            supplementNames.forEach(name => {
+                const periods = timeline[name];
+                let barsHtml = '';
+                periods.forEach(period => {
+                    const timingClass = period.timing === 'PM' ? 'pm' : (period.timing === 'AS NEEDED' || period.timing === 'as needed' || period.timing === 'As needed') ? 'asneeded' : 'am';
+                    const left = pct(period.start);
+                    const width = widthPct(period.start, period.end);
+                    const bh = barHeight(period.amount);
+                    const bt = Math.round((TRACK_H - bh) / 2); // center vertically
+                    const startLabel = period.start.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+                    const endLabel = period.end >= today ? 'present' : period.end.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+                    barsHtml += `<div class="gantt-bar ${timingClass}" style="left:${left}%;width:${width}%;height:${bh}px;top:${bt}px" title="${name} · ${period.amount} · ${period.timing} · ${startLabel} – ${endLabel}">
+                        <span class="gantt-bar-label">${period.amount}</span>
+                    </div>`;
+                });
+                rowsHtml += `
+                    <div class="gantt-row">
+                        <div class="gantt-row-label">${name}</div>
+                        <div class="gantt-row-track" style="height:${TRACK_H}px">${barsHtml}</div>
+                    </div>`;
+            });
+
+            ganttChart.innerHTML = `
+                <div class="gantt-scroll-container">
+                    <div class="gantt-inner">
+                        <div class="gantt-header">
+                            <div class="gantt-label-col">supplement</div>
+                            <div class="gantt-timeline-col" style="position:relative;height:22px;">${ticksHtml}</div>
+                        </div>
+                        ${rowsHtml}
+                    </div>
+                </div>
+                <div class="gantt-legend">
+                    <div class="gantt-legend-item"><div class="gantt-legend-swatch" style="background:var(--blue)"></div>AM</div>
+                    <div class="gantt-legend-item"><div class="gantt-legend-swatch" style="background:#7ab8e8"></div>PM</div>
+                    <div class="gantt-legend-item"><div class="gantt-legend-swatch" style="background:#a8d5a2"></div>as needed</div>
+                </div>
+            `;
+        }
+
+        function updateInsights() {
+            const last7 = healthData.slice(0, 7);
+
+            // Calculate average mood AM
+            const moodValues = {'terrible': 1, 'bad': 2, 'okay': 3, 'good': 4, 'great': 5};
+            const moodAMData = last7.filter(e => e.moodAM && moodValues[e.moodAM]);
+            const avgMoodAMNum = moodAMData.length > 0
+                ? moodAMData.reduce((sum, e) => sum + moodValues[e.moodAM], 0) / moodAMData.length
+                : 0;
+            const moodAMLabel = avgMoodAMNum === 0 ? '—' :
+                avgMoodAMNum <= 1.5 ? 'terrible' :
+                avgMoodAMNum <= 2.5 ? 'bad' :
+                avgMoodAMNum <= 3.5 ? 'okay' :
+                avgMoodAMNum <= 4.5 ? 'good' : 'great';
+            document.getElementById('avgMoodAM').textContent = moodAMLabel;
+
+            // Calculate average mood PM
+            const moodPMData = last7.filter(e => e.moodPM && moodValues[e.moodPM]);
+            const avgMoodPMNum = moodPMData.length > 0
+                ? moodPMData.reduce((sum, e) => sum + moodValues[e.moodPM], 0) / moodPMData.length
+                : 0;
+            const moodPMLabel = avgMoodPMNum === 0 ? '—' :
+                avgMoodPMNum <= 1.5 ? 'terrible' :
+                avgMoodPMNum <= 2.5 ? 'bad' :
+                avgMoodPMNum <= 3.5 ? 'okay' :
+                avgMoodPMNum <= 4.5 ? 'good' : 'great';
+            document.getElementById('avgMoodPM').textContent = moodPMLabel;
+
+            const avgSleep = last7.reduce((sum, e) => sum + (e.sleepHours || 0), 0) / Math.max(last7.length, 1);
+            document.getElementById('avgSleep').textContent = avgSleep.toFixed(1);
+
+            const getTotalSteps = e => (e.stepsAM != null || e.stepsPM != null)
+                ? (e.stepsAM || 0) + (e.stepsPM || 0)
+                : (e.steps || 0);
+            const avgSteps = last7.reduce((sum, e) => sum + getTotalSteps(e), 0) / Math.max(last7.length, 1);
+            document.getElementById('avgSteps').textContent = Math.round(avgSteps).toLocaleString();
+
+            updateSymptomIntensityChart();
+            generateInsights();
+        }
+
+        function calculateSymptomIntensity(entry) {
+            // Calculate average intensity across all symptoms
+            const symptoms = [
+                entry.brainFogAM, entry.brainFogPM,
+                entry.bloatingAM, entry.bloatingPM,
+                entry.fatigueAM, entry.fatiguePM,
+                entry.sinusAM, entry.sinusPM,
+                entry.headacheAM, entry.headachePM
+            ];
+
+            let totalScore = 0;
+            let count = 0;
+
+            symptoms.forEach(symptom => {
+                if (symptom) {
+                    const score = severityToNumber(symptom);
+                    if (score > 0) {
+                        totalScore += score;
+                        count++;
+                    }
+                }
+            });
+
+            return count > 0 ? totalScore / count : 0;
+        }
+
+        function updateSymptomIntensityChart() {
+            const last30 = healthData.slice(0, 30).reverse();
+
+            if (charts.symptomIntensity) charts.symptomIntensity.destroy();
+            charts.symptomIntensity = new Chart(document.getElementById('symptomIntensityChart'), {
+                type: 'line',
+                data: {
+                    labels: last30.map(e => {
+                        const [year, month, day] = e.date.split('-').map(Number);
+                        const localDate = new Date(year, month - 1, day);
+                        return localDate.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+                    }),
+                    datasets: [{
+                        label: 'symptom intensity',
+                        data: last30.map(e => calculateSymptomIntensity(e)),
+                        borderColor: '#0000FF',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#FFFFFF',
+                        pointBorderColor: '#0000FF',
+                        pointBorderWidth: 2,
+                        tension: 0.2,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 10, family: 'JetBrains Mono', weight: '500' } } },
+                        y: {
+                            beginAtZero: true,
+                            max: 3,
+                            grid: { color: '#E0E0E0' },
+                            ticks: {
+                                callback: v => ['none', 'mild', 'moderate', 'severe'][Math.round(v)] || '',
+                                font: { size: 10, family: 'JetBrains Mono', weight: '500' }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function formatDateWithDay(dateStr) {
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const d = new Date(year, month - 1, day);
+            const dow = d.toLocaleDateString('en-US', {weekday: 'short'});
+            const date = d.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+            return `${dow}, ${date}`;
+        }
+
+        function updateHistory() {
+            const list = document.getElementById('entryList');
+            if (healthData.length === 0) {
+                list.innerHTML = '<div class="empty-state"><div class="empty-state-title">no entries</div><div class="empty-state-text">start tracking</div></div>';
+                return;
+            }
+
+            list.innerHTML = healthData.map((entry, index) => {
+                const dateStr = formatDateWithDay(entry.date);
+
+                return `
+                    <div class="entry-item">
+                        <div class="entry-date">${dateStr}</div>
+                        <div class="entry-details">
+                            ${entry.water ? `<span class="entry-tag">${entry.water}oz</span>` : ''}
+                            ${entry.sleepHours ? `<span class="entry-tag">${entry.sleepHours}hrs</span>` : ''}
+                            ${(() => { const t = (entry.stepsAM != null || entry.stepsPM != null) ? (entry.stepsAM||0)+(entry.stepsPM||0) : (entry.steps||0); return t ? `<span class="entry-tag">${t.toLocaleString()} steps</span>` : ''; })()}
+                            ${entry.readiness ? `<span class="entry-tag">rdns ${entry.readiness}</span>` : ''}
+                        </div>
+                        <div class="entry-actions">
+                            <button class="btn-text" onclick="editEntry(${index})">edit</button>
+                            <button class="btn-text delete" onclick="deleteEntry(${index})">delete</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function deleteEntry(index) {
+            if (confirm('delete entry?')) {
+                const dateId = healthData[index].date;
+                healthData.splice(index, 1);
+                saveData();
+                firestoreDeleteEntry(dateId); // sync deletion to cloud
+                updateHistory();
+                updateInsights();
+            }
+        }
+
+        function severityToNumber(severity) {
+            if (!severity) return 0;
+            const lower = severity.toLowerCase();
+            return {'none': 0, 'mild': 1, 'moderate': 2, 'severe': 3, 'no': 0}[lower] || 0;
+        }
+
+        // ── Oura Ring integration ─────────────────────────────────────────────────
+
+        function toggleOuraPanel() {
+            const panel = document.getElementById('ouraPanel');
+            const arrow = document.getElementById('ouraToggleArrow');
+            const open  = panel.style.display === 'none';
+            panel.style.display = open ? '' : 'none';
+            arrow.textContent   = open ? '↑' : '↓';
+        }
+
+        function ouraConnect() {
+            const token  = document.getElementById('ouraTokenInput').value.trim();
+            const errEl  = document.getElementById('ouraError');
+            const btn    = document.querySelector('#ouraConnectForm .btn-primary');
+            errEl.style.display = 'none';
+            if (!token) {
+                errEl.textContent   = 'please paste a token first.';
+                errEl.style.display = 'block';
+                return;
+            }
+            btn.textContent  = 'connecting…';
+            btn.disabled     = true;
+            localStorage.setItem('ouraToken', token);
+            ouraSync().finally(() => {
+                btn.textContent = 'connect';
+                btn.disabled    = false;
+            });
+        }
+
+        function ouraDisconnect() {
+            localStorage.removeItem('ouraToken');
+            localStorage.removeItem('ouraData');
+            document.getElementById('ouraBadge').textContent = 'not connected';
+            document.getElementById('ouraBadge').className   = 'oura-badge disconnected';
+            document.getElementById('ouraConnectForm').style.display    = 'block';
+            document.getElementById('ouraConnectedView').style.display  = 'none';
+            document.getElementById('ouraTokenInput').value = '';
+            // Re-open the panel so the form is visible
+            document.getElementById('ouraPanel').style.display = '';
+            document.getElementById('ouraToggleArrow').textContent = '↑';
+            updateEntrySyncBtn();
+        }
+
+        async function ouraSync() {
+            const token = localStorage.getItem('ouraToken');
+            if (!token) return;
+            const errEl   = document.getElementById('ouraError');
+            const syncBtn = document.querySelector('#ouraConnectedView .btn-text');
+            errEl.style.display = 'none';
+            if (syncBtn) { syncBtn.textContent = 'syncing…'; syncBtn.disabled = true; }
+
+            const end   = new Date();
+            const start = new Date(); start.setDate(start.getDate() - 30);
+            const fmt   = d => d.toISOString().slice(0, 10);
+            const qs    = `?start_date=${fmt(start)}&end_date=${fmt(end)}`;
+            // Oura's API blocks direct browser requests from third-party domains (CORS).
+            // Route through corsproxy.io which adds the missing CORS headers.
+            const PROXY = 'https://corsproxy.io/?';
+            const ourFetch = url => fetch(PROXY + encodeURIComponent(url), {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            try {
+                // Test connectivity first with a lightweight endpoint
+                const testRes = await ourFetch(
+                    'https://api.ouraring.com/v2/usercollection/personal_info'
+                );
+                if (testRes.status === 401) {
+                    errEl.textContent   = 'invalid token — double-check your personal access token.';
+                    errEl.style.display = 'block';
+                    if (syncBtn) { syncBtn.textContent = 'sync now'; syncBtn.disabled = false; }
+                    return;
+                }
+                if (!testRes.ok) {
+                    errEl.textContent   = `oura returned ${testRes.status} — try again later.`;
+                    errEl.style.display = 'block';
+                    if (syncBtn) { syncBtn.textContent = 'sync now'; syncBtn.disabled = false; }
+                    return;
+                }
+
+                const [sleepRes, readinessRes, activityRes, sessionsRes] = await Promise.all([
+                    ourFetch(`https://api.ouraring.com/v2/usercollection/daily_sleep${qs}`),
+                    ourFetch(`https://api.ouraring.com/v2/usercollection/daily_readiness${qs}`),
+                    ourFetch(`https://api.ouraring.com/v2/usercollection/daily_activity${qs}`),
+                    ourFetch(`https://api.ouraring.com/v2/usercollection/sleep${qs}`),
+                ]);
+
+                if (!sleepRes.ok) {
+                    const msg = sleepRes.status === 401
+                        ? 'invalid token — check your personal access token and make sure it has read access.'
+                        : `oura returned error ${sleepRes.status} — try again.`;
+                    errEl.textContent   = msg;
+                    errEl.style.display = 'block';
+                    if (syncBtn) { syncBtn.textContent = 'sync now'; syncBtn.disabled = false; }
+                    return;
+                }
+
+                const [sleepJson, readinessJson, activityJson, sessionsJson] = await Promise.all([
+                    sleepRes.json(), readinessRes.json(), activityRes.json(), sessionsRes.json()
+                ]);
+
+                // Index by date for easy lookup
+                const byDate = {};
+                (sleepJson.data || []).forEach(d => {
+                    byDate[d.day] = byDate[d.day] || {};
+                    byDate[d.day].sleepScore      = d.score;
+                    byDate[d.day].sleepDeep       = d.contributors?.deep_sleep;
+                    byDate[d.day].sleepRem        = d.contributors?.rem_sleep;
+                    byDate[d.day].sleepEfficiency = d.contributors?.efficiency;
+                });
+
+                // Sleep sessions give us bedtime start/end and actual duration.
+                // Each session has a day field (the date the sleep "belongs to").
+                // Use the longest session per day (main sleep, not naps).
+                (sessionsJson.data || []).forEach(s => {
+                    const day = s.day;
+                    if (!day) return;
+                    byDate[day] = byDate[day] || {};
+                    const dur = s.total_sleep_duration || 0;
+                    // Keep only the longest session (main sleep) per day
+                    if (!byDate[day].sleepDuration || dur > byDate[day].sleepDuration) {
+                        byDate[day].sleepDuration  = dur;              // seconds
+                        byDate[day].bedtimeStart   = s.bedtime_start;  // ISO string
+                        byDate[day].bedtimeEnd     = s.bedtime_end;    // ISO string
+                    }
+                });
+                (readinessJson.data || []).forEach(d => {
+                    byDate[d.day] = byDate[d.day] || {};
+                    byDate[d.day].readiness      = d.score;
+                    byDate[d.day].hrv            = d.contributors?.hrv_balance;
+                    byDate[d.day].tempDeviation  = d.temperature_deviation;
+                    byDate[d.day].restingHR      = d.contributors?.resting_heart_rate;
+                });
+                (activityJson.data || []).forEach(d => {
+                    byDate[d.day] = byDate[d.day] || {};
+                    const split = splitStepsByNoon(d.steps || 0, d.met, d.day);
+                    byDate[d.day].ouraStepsAM    = split.am;
+                    byDate[d.day].ouraStepsPM    = split.pm;
+                    byDate[d.day].activityScore  = d.score;
+                    byDate[d.day].activeCalories = d.active_calories;
+                });
+
+                const cache = { syncedAt: new Date().toISOString(), data: byDate };
+                localStorage.setItem('ouraData', JSON.stringify(cache));
+                renderOuraConnected(cache);
+
+            } catch (err) {
+                console.error('Oura sync error:', err);
+                // Show the actual browser error so we can diagnose it
+                const isCors = err instanceof TypeError &&
+                    (err.message.toLowerCase().includes('fetch') ||
+                     err.message.toLowerCase().includes('cors') ||
+                     err.message === 'Failed to fetch' ||
+                     err.message === 'Load failed');
+                errEl.textContent = isCors
+                    ? 'browser blocked the request (CORS). oura\'s API may not allow direct browser access from this domain. try opening the app as a local file instead of via GitHub Pages.'
+                    : `error: ${err.message}`;
+                errEl.style.display = 'block';
+                const form = document.getElementById('ouraConnectForm');
+                if (form) form.style.display = 'block';
+            } finally {
+                if (syncBtn) { syncBtn.textContent = 'sync now'; syncBtn.disabled = false; }
+            }
+        }
+
+        function getOuraData() {
+            const raw = localStorage.getItem('ouraData');
+            return raw ? JSON.parse(raw) : null;
+        }
+
+        // Split total steps into AM (before noon) and PM (after noon) using
+        // the MET (Metabolic Equivalent) intraday series from Oura's daily_activity.
+        // Returns { am, pm } integers.
+        function splitStepsByNoon(totalSteps, met, dateStr) {
+            if (!met || !met.items || !met.items.length || !met.timestamp || !met.interval) {
+                return { am: totalSteps, pm: 0 };
+            }
+            const startTime = new Date(met.timestamp);
+            // Build local noon for dateStr using Date constructor (always local time)
+            const [yr, mo, dy] = dateStr.split('-').map(Number);
+            const noonTime = new Date(yr, mo - 1, dy, 12, 0, 0, 0);
+            const secondsToNoon = (noonTime - startTime) / 1000;
+            const noonIdx = Math.max(0, Math.min(Math.round(secondsToNoon / met.interval), met.items.length));
+            const amMET = met.items.slice(0, noonIdx).reduce((a, b) => a + b, 0);
+            const pmMET = met.items.slice(noonIdx).reduce((a, b) => a + b, 0);
+            const totalMET = amMET + pmMET;
+            if (totalMET <= 0) return { am: totalSteps, pm: 0 };
+            const amSteps = Math.round(totalSteps * amMET / totalMET);
+            return { am: amSteps, pm: totalSteps - amSteps };
+        }
+
+        // Fill new entry form fields from Oura data for a given date (YYYY-MM-DD).
+        // Never called when editing an existing entry (editingIndex !== null).
+        function fillFromOura(dateStr) {
+            if (editingIndex !== null) return;   // never overwrite existing entries
+            const cache = getOuraData();
+            if (!cache) return;
+            const d = cache.data[dateStr];
+            if (!d) return;
+
+            // ── Steps AM / PM ─────────────────────────────────────────────────────
+            if (d.ouraStepsAM != null) {
+                const el = document.getElementById('stepsAM');
+                if (el) { el.value = d.ouraStepsAM; el.dispatchEvent(new Event('input')); }
+            }
+            if (d.ouraStepsPM != null) {
+                const el = document.getElementById('stepsPM');
+                if (el) { el.value = d.ouraStepsPM; el.dispatchEvent(new Event('input')); }
+            }
+
+            // ── Readiness ─────────────────────────────────────────────────────────
+            if (d.readiness != null) {
+                const el = document.getElementById('readiness');
+                if (el) { el.value = d.readiness; el.dispatchEvent(new Event('input')); }
+            }
+
+            // ── Hours slept ───────────────────────────────────────────────────────
+            if (d.sleepDuration) {
+                const hrs = Math.round((d.sleepDuration / 3600) * 10) / 10;  // 1 dp
+                const sleepEl = document.getElementById('sleepHours');
+                if (sleepEl) {
+                    sleepEl.value = hrs;
+                    sleepEl.dispatchEvent(new Event('input'));
+                }
+            }
+
+            // ── Wake time (bedtime_end) ───────────────────────────────────────────
+            if (d.bedtimeEnd) {
+                const wakeEl = document.getElementById('wakeTime');
+                if (wakeEl) {
+                    // Convert ISO timestamp to local HH:MM
+                    const local = new Date(d.bedtimeEnd);
+                    const hh = String(local.getHours()).padStart(2, '0');
+                    const mm = String(local.getMinutes()).padStart(2, '0');
+                    wakeEl.value = `${hh}:${mm}`;
+                }
+            }
+
+            // ── Sleep time (bedtime_start, stored as previous night's date) ───────
+            if (d.bedtimeStart) {
+                const sleepTimeEl = document.getElementById('firstMealTime');
+                if (sleepTimeEl) {
+                    const local = new Date(d.bedtimeStart);
+                    const hh = String(local.getHours()).padStart(2, '0');
+                    const mm = String(local.getMinutes()).padStart(2, '0');
+                    sleepTimeEl.value = `${hh}:${mm}`;
+                }
+            }
+
+            // ── Sleep quality (map score → label) ────────────────────────────────
+            if (d.sleepScore != null) {
+                const quality = d.sleepScore >= 85 ? 'excellent'
+                              : d.sleepScore >= 70 ? 'good'
+                              : d.sleepScore >= 55 ? 'okay'
+                              : 'poor';
+                const sel = document.getElementById('sleepQuality');
+                const container = document.querySelector('[data-field="sleepQuality"]');
+                const display   = document.querySelector('[data-display="sleepQuality"]');
+                if (sel && container && display) {
+                    sel.value = quality;
+                    display.textContent = quality;
+                    // Update option selected state and container colour
+                    container.querySelectorAll('.option-item').forEach(item => {
+                        item.classList.toggle('selected', item.getAttribute('data-value') === quality);
+                    });
+                    const q = quality === 'excellent' || quality === 'good' ? 'good'
+                            : quality === 'okay' ? 'neutral' : 'bad';
+                    container.classList.remove('selected-good', 'selected-bad', 'selected-neutral');
+                    container.classList.add(`selected-${q}`);
+                }
+            }
+        }
+
+        // Sync oura data and fill the entry form — called from the entry page button.
+        // Self-contained so it doesn't depend on ouraSync() succeeding.
+        async function entrySyncOura() {
+            const btn     = document.getElementById('entrySyncBtn');
+            const token   = localStorage.getItem('ouraToken');
+            if (!token) return;
+
+            btn.textContent = '↻ syncing…';
+            btn.disabled    = true;
+
+            const dateStr = document.getElementById('entryDate').value;  // YYYY-MM-DD
+            // For sleep data we also need the previous day (sleep sessions
+            // are filed under the morning-of date, which may be today or yesterday)
+            const prev = new Date(dateStr);
+            prev.setDate(prev.getDate() - 1);
+            const prevStr = prev.toISOString().slice(0, 10);
+
+            const PROXY = 'https://corsproxy.io/?';
+            const get   = url => fetch(PROXY + encodeURIComponent(url), {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            // Compute a day after dateStr so activity end_date is always inclusive
+            const nextDay = new Date(dateStr);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const nextStr = nextDay.toISOString().slice(0, 10);
+
+            try {
+                // Fetch activity, daily_sleep score, readiness, and raw sessions
+                const [actRes, dailySleepRes, readinessRes, sessRes] = await Promise.all([
+                    get(`https://api.ouraring.com/v2/usercollection/daily_activity?start_date=${prevStr}&end_date=${nextStr}`),
+                    get(`https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=${dateStr}&end_date=${nextStr}`),
+                    get(`https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=${dateStr}&end_date=${nextStr}`),
+                    get(`https://api.ouraring.com/v2/usercollection/sleep?start_date=${prevStr}&end_date=${nextStr}`),
+                ]);
+
+                const filled = [];
+
+                // ── Steps AM / PM from activity (split by MET intraday data) ────
+                if (actRes.ok) {
+                    const actJson = await actRes.json();
+                    const day = (actJson.data || []).find(d => d.day === dateStr);
+                    if (day != null && day.steps != null) {
+                        const split = splitStepsByNoon(day.steps, day.met, dateStr);
+                        const elAM = document.getElementById('stepsAM');
+                        if (elAM) { elAM.value = split.am; elAM.dispatchEvent(new Event('input')); filled.push('steps am'); }
+                        const elPM = document.getElementById('stepsPM');
+                        if (elPM) { elPM.value = split.pm; elPM.dispatchEvent(new Event('input')); filled.push('steps pm'); }
+                    }
+                } else {
+                    console.warn('[oura] activity request failed:', actRes.status, actRes.statusText);
+                }
+
+                // ── Readiness score ──────────────────────────────────────────────
+                if (readinessRes.ok) {
+                    const rJson = await readinessRes.json();
+                    const rDay  = (rJson.data || []).find(d => d.day === dateStr);
+                    if (rDay?.score != null) {
+                        const el = document.getElementById('readiness');
+                        if (el) { el.value = rDay.score; el.dispatchEvent(new Event('input')); filled.push('readiness'); }
+                    }
+                }
+
+                // ── Sleep fields from sessions ───────────────────────────────
+                if (sessRes.ok) {
+                    const sessJson = await sessRes.json();
+                    const sessions = sessJson.data || [];
+
+                    // Primary filter: sessions whose bedtime_end (local date) = dateStr.
+                    // This is the most reliable signal — "woke up on this date."
+                    // Oura's `day` field is inconsistent (sometimes start date, sometimes end date).
+                    let mainPool = sessions.filter(s => {
+                        if (!s.bedtime_end) return false;
+                        const wakeDate = new Date(s.bedtime_end).toLocaleDateString('en-CA'); // YYYY-MM-DD in local tz
+                        return wakeDate === dateStr;
+                    });
+
+                    // Fallback: Oura `day` field matching dateStr, then prevStr
+                    if (!mainPool.length) mainPool = sessions.filter(s => s.day === dateStr);
+                    if (!mainPool.length) mainPool = sessions.filter(s => s.day === prevStr);
+
+                    // Pick the longest session from the matched pool
+                    const main = mainPool.length
+                        ? mainPool.sort((a, b) =>
+                            (b.total_sleep_duration || 0) - (a.total_sleep_duration || 0))[0]
+                        : null;
+
+                    if (main) {
+                        // Hours slept
+                        if (main.total_sleep_duration) {
+                            const hrs = Math.round(main.total_sleep_duration / 3600 * 10) / 10;
+                            const el  = document.getElementById('sleepHours');
+                            if (el) { el.value = hrs; el.dispatchEvent(new Event('input')); filled.push('hours slept'); }
+                        }
+                        // Wake time
+                        if (main.bedtime_end) {
+                            const t  = new Date(main.bedtime_end);
+                            const el = document.getElementById('wakeTime');
+                            if (el) {
+                                el.value = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+                                filled.push('wake time');
+                            }
+                        }
+                        // Sleep time
+                        if (main.bedtime_start) {
+                            const t  = new Date(main.bedtime_start);
+                            const el = document.getElementById('firstMealTime');
+                            if (el) {
+                                el.value = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+                                filled.push('sleep time');
+                            }
+                        }
+                    }
+                }
+
+                // ── Sleep quality from daily_sleep score (more reliable than session score) ──
+                if (dailySleepRes.ok) {
+                    const dsJson = await dailySleepRes.json();
+                    const dsDay  = (dsJson.data || []).find(d => d.day === dateStr);
+                    const score  = dsDay?.score ?? null;
+                    if (score != null) {
+                        const quality   = score >= 85 ? 'excellent'
+                                        : score >= 70 ? 'good'
+                                        : score >= 55 ? 'okay' : 'poor';
+                        const sel       = document.getElementById('sleepQuality');
+                        const container = document.querySelector('[data-field="sleepQuality"]');
+                        const display   = document.querySelector('[data-display="sleepQuality"]');
+                        if (sel && container && display) {
+                            sel.value = quality;
+                            display.textContent = quality;
+                            container.querySelectorAll('.option-item').forEach(item =>
+                                item.classList.toggle('selected', item.getAttribute('data-value') === quality));
+                            const q = (quality === 'excellent' || quality === 'good') ? 'good'
+                                    : quality === 'okay' ? 'neutral' : 'bad';
+                            container.classList.remove('selected-good','selected-bad','selected-neutral');
+                            container.classList.add(`selected-${q}`);
+                            filled.push('sleep quality');
+                        }
+                    }
+                }
+
+                btn.textContent = filled.length
+                    ? `✓ filled ${filled.join(', ')}`
+                    : '↻ no data yet';
+                setTimeout(() => { btn.textContent = '↻ sync oura'; }, 3000);
+
+            } catch (err) {
+                console.error('entrySyncOura error:', err);
+                btn.textContent = '✗ sync failed';
+                setTimeout(() => { btn.textContent = '↻ sync oura'; }, 3000);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // Show/hide the entry-page sync button based on connection state
+        function updateEntrySyncBtn() {
+            const btn = document.getElementById('entrySyncBtn');
+            if (btn) btn.style.display = localStorage.getItem('ouraToken') ? '' : 'none';
+        }
+
+        function renderOuraConnected(cache) {
+            document.getElementById('ouraBadge').textContent  = 'connected';
+            document.getElementById('ouraBadge').className    = 'oura-badge connected';
+            document.getElementById('ouraConnectForm').style.display   = 'none';
+            document.getElementById('ouraConnectedView').style.display = '';
+            // Collapse the panel now that it's connected — stats show in the header row
+            document.getElementById('ouraPanel').style.display = 'none';
+            document.getElementById('ouraToggleArrow').textContent = '↓';
+            updateEntrySyncBtn();
+
+            // Most recent day's stats
+            const dates = Object.keys(cache.data).sort().reverse();
+            const today = dates[0];
+            const d     = today ? cache.data[today] : {};
+            const grid  = document.getElementById('ouraStatsGrid');
+            const stat  = (label, val, unit='') =>
+                `<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-value" style="font-size:1.6rem">${val ?? '—'}${val != null && unit ? '<span style="font-size:0.8rem;font-weight:400"> '+unit+'</span>' : ''}</div></div>`;
+
+            grid.innerHTML =
+                stat('readiness', d.readiness) +
+                stat('sleep score', d.sleepScore) +
+                stat('hrv balance', d.hrv) +
+                stat('body temp', d.tempDeviation != null ? (d.tempDeviation >= 0 ? '+' : '') + d.tempDeviation?.toFixed(2) : null, '°C');
+
+            const synced = new Date(cache.syncedAt);
+            document.getElementById('ouraLastSynced').textContent =
+                `last synced ${synced.toLocaleDateString('en-US',{month:'short',day:'numeric'})} at ${synced.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}`;
+        }
+
+        function initOura() {
+            const token = localStorage.getItem('ouraToken');
+            const cache = getOuraData();
+            if (token && cache) { renderOuraConnected(cache); }
+            else if (token)     { ouraSync(); }
+            updateEntrySyncBtn();
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────
+
+        function generateInsights() {
+            const insightsContent = document.getElementById('insightsContent');
+            const entries = [...healthData].sort((a,b) => b.date.localeCompare(a.date));
+            if (entries.length < 3) {
+                insightsContent.innerHTML = '<div class="insight-card"><strong>not enough data yet</strong>log at least 3 days to see insights.</div>';
+                return;
+            }
+
+            const last14  = entries.slice(0, 14);
+            const last7   = entries.slice(0, 7);
+            const prev7   = entries.slice(7, 14);
+            const sevMap  = { 'none':0, 'no':0, 'mild':1, 'moderate':2, 'severe':3 };
+            const moodMap = { 'terrible':1,'bad':2,'okay':3,'good':4,'great':5 };
+
+            const sev = v => sevMap[(v||'').toLowerCase()] ?? 0;
+            const avgArr  = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+
+            // Overall symptom burden per entry (avg across all symptom fields)
+            const burden = e => {
+                const vals = [
+                    sev(e.brainFogAM), sev(e.brainFogPM),
+                    sev(e.fatigueAM),  sev(e.fatiguePM),
+                    sev(e.bloatingAM), sev(e.bloatingPM),
+                    sev(e.sinusAM),    sev(e.sinusPM),
+                    sev(e.headacheAM), sev(e.headachePM),
+                    sev(e.anxietyAM),  sev(e.anxietyPM),
+                ];
+                const active = vals.filter(v => v > 0);
+                return active.length ? active.reduce((a,b)=>a+b,0)/active.length : 0;
+            };
+
+            let html = '';
+            const card = (title, body, cls='') =>
+                `<div class="insight-card"><strong>${title}</strong>${body}</div>`;
+
+            // ── 1. Weekly trend ───────────────────────────────────────────────
+            if (prev7.length >= 3) {
+                const thisWeek = avgArr(last7.map(burden));
+                const lastWeek = avgArr(prev7.map(burden));
+                const delta    = thisWeek - lastWeek;
+                const pct      = lastWeek > 0 ? Math.abs(delta/lastWeek*100).toFixed(0) : null;
+                let msg;
+                if (Math.abs(delta) < 0.1) {
+                    msg = `symptom burden is <span class="trend-flat">holding steady</span> week-over-week.`;
+                } else if (delta < 0) {
+                    msg = `symptom burden is <span class="trend-down">down ${pct ? pct+'%' : ''}</span> compared to the previous 7 days — things are improving.`;
+                } else {
+                    msg = `symptom burden is <span class="trend-up">up ${pct ? pct+'%' : ''}</span> compared to the previous 7 days.`;
+                }
+                html += card('weekly trend', msg);
+            }
+
+            // ── 2. Sleep → next-day fatigue correlation ────────────────────────
+            {
+                const pairs = [];
+                for (let i = 0; i < last14.length - 1; i++) {
+                    const sleepHrs = entries[i+1]?.sleepHours; // sleep night before
+                    const nextFat  = sev(entries[i].fatigueAM);
+                    if (sleepHrs > 0) pairs.push({ sleep: sleepHrs, fatigue: nextFat });
+                }
+                if (pairs.length >= 4) {
+                    const lowSleep  = pairs.filter(p => p.sleep < 7);
+                    const goodSleep = pairs.filter(p => p.sleep >= 7);
+                    const avgLow  = avgArr(lowSleep.map(p=>p.fatigue));
+                    const avgGood = avgArr(goodSleep.map(p=>p.fatigue));
+                    if (avgLow !== null && avgGood !== null && lowSleep.length >= 2 && goodSleep.length >= 2) {
+                        const diff = avgLow - avgGood;
+                        if (diff > 0.3) {
+                            html += card('sleep → fatigue', `on mornings after sleeping under 7 hours, fatigue severity averages <span class="trend-up">${avgLow.toFixed(1)}</span> vs <span class="trend-down">${avgGood.toFixed(1)}</span> after 7+ hours.`);
+                        } else {
+                            html += card('sleep & fatigue', `fatigue levels are similar regardless of sleep duration in your recent data — other factors may be driving it.`);
+                        }
+                    }
+                }
+            }
+
+            // ── 3. Hydration → headache correlation ──────────────────────────
+            {
+                const days = last14.filter(e => e.water > 0 && (e.headacheAM || e.headachePM));
+                if (days.length >= 5) {
+                    const lowWater  = days.filter(e => e.water < 64);
+                    const highWater = days.filter(e => e.water >= 64);
+                    const avgLow  = avgArr(lowWater.map(e  => Math.max(sev(e.headacheAM), sev(e.headachePM))));
+                    const avgHigh = avgArr(highWater.map(e => Math.max(sev(e.headacheAM), sev(e.headachePM))));
+                    if (avgLow !== null && avgHigh !== null) {
+                        if (avgLow > avgHigh + 0.2) {
+                            html += card('hydration & headaches', `headache severity averages <span class="trend-up">${avgLow.toFixed(1)}</span> on low-water days (&lt;64 oz) vs <span class="trend-down">${avgHigh.toFixed(1)}</span> when well-hydrated.`);
+                        } else {
+                            const avg14 = avgArr(last14.filter(e=>e.water>0).map(e=>e.water));
+                            html += card('hydration', `averaging ${avg14?.toFixed(0) ?? '—'} oz/day over the last 14 days. ${avg14 < 64 ? 'aim for 64 oz daily.' : 'good hydration.'}`);
+                        }
+                    }
+                } else {
+                    const avg14 = avgArr(last14.filter(e=>e.water>0).map(e=>e.water));
+                    if (avg14) html += card('hydration', `averaging ${avg14.toFixed(0)} oz/day. ${avg14 < 64 ? 'aim for 64 oz daily.' : 'on track.'}`);
+                }
+            }
+
+            // ── 4. AM vs PM symptom comparison ───────────────────────────────
+            {
+                const pairs = last14.filter(e => e.fatigueAM || e.fatiguePM || e.brainFogAM || e.brainFogPM);
+                if (pairs.length >= 5) {
+                    const amBurden = pairs.map(e => avgArr([sev(e.fatigueAM), sev(e.brainFogAM), sev(e.bloatingAM), sev(e.anxietyAM)].filter(v=>v>=0)));
+                    const pmBurden = pairs.map(e => avgArr([sev(e.fatiguePM), sev(e.brainFogPM), sev(e.bloatingPM), sev(e.anxietyPM)].filter(v=>v>=0)));
+                    const avgAM = avgArr(amBurden.filter(v=>v!=null));
+                    const avgPM = avgArr(pmBurden.filter(v=>v!=null));
+                    if (avgAM !== null && avgPM !== null && Math.abs(avgAM - avgPM) > 0.15) {
+                        const worse  = avgAM > avgPM ? 'mornings' : 'afternoons';
+                        const better = avgAM > avgPM ? 'afternoons' : 'mornings';
+                        html += card('am vs pm', `symptoms tend to be worse in the <span class="trend-up">${worse}</span> and ease by ${better}. morning score: ${avgAM.toFixed(1)}, afternoon: ${avgPM.toFixed(1)}.`);
+                    }
+                }
+            }
+
+            // ── 5. Steps → mood correlation ───────────────────────────────────
+            {
+                const gs = e => (e.stepsAM != null || e.stepsPM != null) ? (e.stepsAM||0)+(e.stepsPM||0) : (e.steps||0);
+                const days = last14.filter(e => gs(e) > 0 && e.moodPM);
+                if (days.length >= 5) {
+                    const stepsArr = days.map(e=>gs(e));
+                    const median   = [...stepsArr].sort((a,b)=>a-b)[Math.floor(stepsArr.length/2)];
+                    const active   = days.filter(e => gs(e) >= median);
+                    const lessAct  = days.filter(e => gs(e) < median);
+                    const moodAct  = avgArr(active.map(e => moodMap[e.moodPM] ?? 0).filter(v=>v>0));
+                    const moodLess = avgArr(lessAct.map(e => moodMap[e.moodPM] ?? 0).filter(v=>v>0));
+                    if (moodAct !== null && moodLess !== null && active.length >= 2 && lessAct.length >= 2) {
+                        const moodLabel = v => v<=1.5?'terrible':v<=2.5?'bad':v<=3.5?'okay':v<=4.5?'good':'great';
+                        if (moodAct - moodLess > 0.3) {
+                            html += card('activity & mood', `on higher-activity days (≥${median.toLocaleString()} steps) your evening mood averages <span class="trend-down">${moodLabel(moodAct)}</span> vs <span class="trend-up">${moodLabel(moodLess)}</span> on lower-activity days.`);
+                        }
+                    }
+                }
+            }
+
+            // ── 6. Most frequent/severe symptom ──────────────────────────────
+            {
+                const fields = {
+                    'brain fog': ['brainFogAM','brainFogPM'],
+                    'fatigue':   ['fatigueAM','fatiguePM'],
+                    'bloating':  ['bloatingAM','bloatingPM'],
+                    'headache':  ['headacheAM','headachePM'],
+                    'sinus':     ['sinusAM','sinusPM'],
+                    'anxiety':   ['anxietyAM','anxietyPM'],
+                };
+                let worstName = '', worstAvg = 0;
+                Object.entries(fields).forEach(([name, keys]) => {
+                    const vals = last14.flatMap(e => keys.map(k => sev(e[k]))).filter(v=>v>0);
+                    const avg  = vals.length ? avgArr(vals) : 0;
+                    if (avg > worstAvg) { worstAvg = avg; worstName = name; }
+                });
+                if (worstName && worstAvg > 0.5) {
+                    const severity = worstAvg >= 2 ? 'moderate to severe' : worstAvg >= 1 ? 'mild to moderate' : 'mild';
+                    const daysActive = last14.filter(e => {
+                        const keys = fields[worstName];
+                        return keys.some(k => sev(e[k]) > 0);
+                    }).length;
+                    html += card('top symptom', `<strong>${worstName}</strong> appears on <span class="trend-up">${daysActive} of ${last14.length} days</span> at ${severity} intensity. this is your most consistent symptom right now.`);
+                }
+            }
+
+            // ── 7. Logging streak ─────────────────────────────────────────────
+            {
+                let streak = 0;
+                const today = new Date();
+                for (let i = 0; i < 60; i++) {
+                    const d   = new Date(today); d.setDate(today.getDate() - i);
+                    const key = d.toISOString().slice(0,10);
+                    if (entries.find(e => e.date === key)) streak++;
+                    else if (i > 0) break;
+                }
+                if (streak >= 3) {
+                    html += card('logging streak', `${streak} day${streak!==1?'s':''} in a row — consistency makes the data meaningful. keep it up.`);
+                }
+            }
+
+            // ── 8. Oura HRV insight ──────────────────────────────────────────
+            {
+                const oura = getOuraData();
+                if (oura) {
+                    const dates = Object.keys(oura.data).sort().reverse().slice(0, 7);
+                    const hrvVals = dates.map(d => oura.data[d].hrv).filter(v => v != null);
+                    if (hrvVals.length >= 3) {
+                        const avg   = avgArr(hrvVals);
+                        const trend = hrvVals[0] - hrvVals[hrvVals.length - 1];
+                        const dir   = Math.abs(trend) < 3 ? 'stable' : trend > 0 ? 'rising' : 'declining';
+                        const cls   = dir === 'rising' ? 'trend-down' : dir === 'declining' ? 'trend-up' : 'trend-flat';
+                        html += card('hrv balance (oura)', `7-day avg hrv balance score: <strong>${avg.toFixed(0)}</strong>. trend is <span class="${cls}">${dir}</span>. hrv reflects recovery — rising typically means your body is adapting well.`);
+                    }
+                }
+            }
+
+            insightsContent.innerHTML = html || '<div class="insight-card"><strong>keep logging</strong>more days of data will unlock detailed correlations.</div>';
+        }
+
+        function setupWeeklyExport() {
+            const lastExport = localStorage.getItem('lastHealthExport');
+            const now = new Date();
+            const oneWeek = 7 * 24 * 60 * 60 * 1000; // milliseconds in a week
+
+            if (!lastExport || (now - new Date(lastExport)) >= oneWeek) {
+                // Auto-export weekly
+                setTimeout(() => {
+                    autoExportData();
+                    localStorage.setItem('lastHealthExport', now.toISOString());
+                }, 2000); // Delay 2 seconds after page load
+            }
+
+            // Set up recurring check (check daily)
+            setInterval(() => {
+                const lastExport = localStorage.getItem('lastHealthExport');
+                const now = new Date();
+                if (!lastExport || (now - new Date(lastExport)) >= oneWeek) {
+                    autoExportData();
+                    localStorage.setItem('lastHealthExport', now.toISOString());
+                }
+            }, 24 * 60 * 60 * 1000); // Check once per day
+        }
+
+        function autoExportData() {
+            if (healthData.length === 0) return;
+
+            const blob = new Blob([JSON.stringify(healthData, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            // Note: Browsers don't allow specifying download folder paths, but user can configure
+            // their browser to always ask where to save or to default to Downloads
+            a.download = `health-data-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function exportData() {
+            const blob = new Blob([JSON.stringify(healthData, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `health-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+        }
+
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = event => {
+                    try {
+                        const imported = JSON.parse(event.target.result);
+                        if (confirm(`import ${imported.length} entries?`)) {
+                            healthData = imported;
+                            saveData();
+                            firestoreSyncAll(); // push imported data to cloud
+                            updateInsights();
+                            showSuccess('data imported');
+                        }
+                    } catch (error) {
+                        alert('invalid file');
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+    </script>
+</body>
+</html>
